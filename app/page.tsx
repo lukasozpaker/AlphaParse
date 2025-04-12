@@ -4,6 +4,7 @@ import type React from "react";
 
 import { useState, useRef, useEffect } from "react";
 import { MessageSquare, Search, Check } from "lucide-react";
+import { GoogleGenAI, Type } from "@google/genai";
 
 import axios from "axios";
 const finnhub = require("finnhub");
@@ -67,6 +68,9 @@ export default function FinancialSearch() {
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
   const searchRef = useRef<HTMLDivElement>(null);
   const FINNHUB_KEY = process.env.NEXT_PUBLIC_FINNHUB_KEY;
+  const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+
+  const gemini = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
   // Ref for auto-scrolling chat
   const messagesEndRef = useRef<HTMLDivElement>(null);
