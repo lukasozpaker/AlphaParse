@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { tickerToCIK } from "@/lib/resources";
 
 type QueryResult = {
     id: string;
@@ -49,6 +50,8 @@ export default function FinancialSearch() {
     const [mode, setMode] = useState<"query" | "chat">("query");
     const ALPHAVANTAGE_KEY = process.env.ALPHAVANTAGE_KEY ?? null;
 
+    console.log(tickerToCIK("INTC"));
+
     // Ref for auto-scrolling chat
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -81,7 +84,7 @@ export default function FinancialSearch() {
                 exchange: "",
                 industry: "",
                 marketCap: "",
-                todayChange: `${parseFloat(globalQuote["10. change percent"]) > 0 ? "+" : ""}${globalQuote["10. change percent"]}`,
+                todayChange: `${parseFloat(globalQuote["10. change percent"]) > 0 ? "+" : ""}${parseFloat(globalQuote["10. change percent"].slice(0, -1)).toFixed(2)}%`,
                 volume: globalQuote["06. volume"],
                 lastTradingDay: globalQuote["07. latest trading day"],
                 price: `$${parseFloat(globalQuote["05. price"]).toFixed(2)}`,
