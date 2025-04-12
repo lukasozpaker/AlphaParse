@@ -14,18 +14,21 @@ bun dev
 
 ## SEC filing API information
 
+```
 CIK is ##########
             ##### is truncated CIK
 CIK is 0000050863 for Intel for example.
+```
 
 Step 0. Retrieve company CIK, function resources/TickerToCIK()
 
 Step 1. Get document accessionNumber (for 10-K/10-Q) from this endpoint
+```
 json = https://data.sec.gov/api/xbrl/companyconcept/CIK##########/us-gaap/AccountsPayableCurrent.json
 json = https://data.sec.gov/api/xbrl/companyconcept/CIK0000050863/us-gaap/AccountsPayableCurrent.json
 
 json.units.USD holds a list of all document information in format 
-```      
+      
 {
     "end": "2024-12-28",
     "val": 12556000000,
@@ -41,6 +44,7 @@ json.units.USD holds a list of all document information in format
 Step 2. 
 Truncated CIK -> ##### 
 https://www.sec.gov/Archives/edgar/data/50863/000005086325000009/0000050863-25-000009.txt
+
 https://www.sec.gov/Archives/edgar/data/`json.cik`/`json.units.USD[x].accn[fields 2 and 3]`/`json.units.USD[x].accn`.txt
 
 
