@@ -21,7 +21,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { tickerToCIK } from "@/lib/resources";
+import { tickerToCIK, ChatMessage, Company, getMostRecent10KFormTextFromTicker, getMostRecent10KURLFromMetadataFromSEC, getCIKFormMetadataFromSEC, getMetadataObjectFromURL, removeStyling, cleanSECDocument, extractFinancialDataFrom10K, extractFinancialDataFrom10KwithTables} from "@/lib/resources";
 
 type QueryResult = {
   id: string;
@@ -34,18 +34,6 @@ type QueryResult = {
   count?: string;
   yearOverYearChange?: string;
   message?: string;
-};
-
-type ChatMessage = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-};
-
-type Company = {
-  symbol: string;
-  name: string;
 };
 
 export default function FinancialSearch() {
@@ -90,6 +78,50 @@ export default function FinancialSearch() {
 
   // Ref for scrolling dropdown
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+
+  // test the metadata function
+  useEffect(() => {
+
+
+
+    console.log("tickerToCIK('AAPL')", tickerToCIK('AAPL'));
+
+    // WORKS: getCIKFormMetadataFromSEC
+    // const fetchMetadata = async () => {
+      // const cik = tickerToCIK('AAPL');
+      // const metadataURL = getCIKFormMetadataFromSEC(cik);
+      // console.log("metadataURL", metadataURL);
+    // }
+    // fetchMetadata();
+
+
+    // const fetchMetadataObject = async () => {
+      // const cik = tickerToCIK('AAPL');
+      // const metadataURL = getCIKFormMetadataFromSEC(cik);
+      // const metadataObject = await getMetadataObjectFromURL(metadataURL);
+      // console.log("metadataObject", metadataObject);
+    // }
+    // fetchMetadataObject();
+
+
+    // test 10K url
+    // const fetch10KURL = async () => {
+      // const cik = tickerToCIK('INTC');
+      // const metadataURL = getCIKFormMetadataFromSEC(cik);
+      // const metadataObject = await getMetadataObjectFromURL(metadataURL);
+      // const filingURL = getMostRecent10KURLFromMetadataFromSEC(metadataObject);
+      // console.log("filingURL", filingURL);
+    // }
+    // fetch10KURL();
+
+    // test and log getMostRecent10KFormTextFromTicker
+    const fetch10KText = async () => {
+      const text = await getMostRecent10KFormTextFromTicker('INTC');
+      console.log("10-K Text", extractFinancialDataFrom10KwithTables(text));
+    }
+    fetch10KText();
+  }, []);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
