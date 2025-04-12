@@ -22,19 +22,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import {
-  tickerToCIK,
-  ChatMessage,
-  Company,
-  getMostRecent10KFormTextFromTicker,
-  getMostRecent10KURLFromMetadataFromSEC,
-  getCIKFormMetadataFromSEC,
-  getMetadataObjectFromURL,
-  removeStyling,
-  cleanSECDocument,
-  extractFinancialDataFrom10K,
-  extractFinancialDataFrom10KwithTables,
-} from "@/lib/resources";
+import { tickerToCIK, ChatMessage, Company, getMostRecent10KFormTextFromTicker, getMostRecent10KURLFromMetadataFromSEC, getCIKFormMetadataFromSEC, getMetadataObjectFromURL, removeStyling, cleanSECDocument, extractFinancialDataFrom10K, extractFinancialDataFrom10KwithTables} from "@/lib/resources";
 
 type QueryResult = {
   id: string;
@@ -70,7 +58,7 @@ export default function FinancialSearch() {
   const FINNHUB_KEY = process.env.NEXT_PUBLIC_FINNHUB_KEY;
   const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
-  const gemini = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+  // const gemini = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
   // Ref for auto-scrolling chat
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -78,43 +66,27 @@ export default function FinancialSearch() {
   // Ref for scrolling dropdown
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
+
   // test the metadata function
   useEffect(() => {
-    console.log("tickerToCIK('AAPL')", tickerToCIK("AAPL"));
-
-    // WORKS: getCIKFormMetadataFromSEC
-    // const fetchMetadata = async () => {
-    // const cik = tickerToCIK('AAPL');
-    // const metadataURL = getCIKFormMetadataFromSEC(cik);
-    // console.log("metadataURL", metadataURL);
-    // }
-    // fetchMetadata();
-
-    // const fetchMetadataObject = async () => {
-    // const cik = tickerToCIK('AAPL');
-    // const metadataURL = getCIKFormMetadataFromSEC(cik);
-    // const metadataObject = await getMetadataObjectFromURL(metadataURL);
-    // console.log("metadataObject", metadataObject);
-    // }
-    // fetchMetadataObject();
-
     // test 10K url
     // const fetch10KURL = async () => {
-    // const cik = tickerToCIK('INTC');
-    // const metadataURL = getCIKFormMetadataFromSEC(cik);
-    // const metadataObject = await getMetadataObjectFromURL(metadataURL);
-    // const filingURL = getMostRecent10KURLFromMetadataFromSEC(metadataObject);
-    // console.log("filingURL", filingURL);
+      // const cik = tickerToCIK('INTC');
+      // const metadataURL = getCIKFormMetadataFromSEC(cik);
+      // const metadataObject = await getMetadataObjectFromURL(metadataURL);
+      // const filingURL = getMostRecent10KURLFromMetadataFromSEC(metadataObject);
+      // console.log("filingURL", filingURL);
     // }
     // fetch10KURL();
 
-    // test and log getMostRecent10KFormTextFromTicker
     const fetch10KText = async () => {
-      const text = await getMostRecent10KFormTextFromTicker("INTC");
-      console.log("10-K Text", extractFinancialDataFrom10KwithTables(text));
-    };
+      if (selectedTicker) {
+        const text = await getMostRecent10KFormTextFromTicker(selectedTicker);
+        console.log("10-K Text", extractFinancialDataFrom10KwithTables(text));
+      }
+    }
     fetch10KText();
-  }, []);
+  }, [selectedTicker]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -222,7 +194,7 @@ export default function FinancialSearch() {
             exchange: profileData.exchange || "N/A",
             industry: profileData.finnhubIndustry || "N/A",
             marketCap: profileData.marketCapitalization
-              ? `$${profileData.marketCapitalization.toLocaleString()}`
+              ? `$${profileData.marketCapitalization.toFixed(2)}B`
               : "N/A",
             todayChange: `${quoteData.d > 0 ? "+" : ""}$${quoteData.d.toFixed(
               2
@@ -593,9 +565,7 @@ export default function FinancialSearch() {
 
                   {/* Market Cap */}
                   <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">
-                      Market Cap (millions)
-                    </p>
+                    <p className="text-sm text-muted-foreground">Market Cap</p>
                     <p className="text-lg font-medium">
                       {tickerData.marketCap}
                     </p>
@@ -624,9 +594,7 @@ export default function FinancialSearch() {
                   {/* Phone */}
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Phone</p>
-                    <p className="text-lg font-medium">
-                      {`+${tickerData.phone}`}
-                    </p>
+                    <p className="text-lg font-medium">{tickerData.phone}</p>
                   </div>
 
                   {/* Website */}

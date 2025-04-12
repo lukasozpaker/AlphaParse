@@ -18,7 +18,8 @@ export function tickerToCIK(ticker: string): string {
 
 
 export function getCIKFormMetadataFromSEC(fullCIKNumber: string)  {
-    return `https://data.sec.gov/api/xbrl/companyconcept/CIK${fullCIKNumber}/us-gaap/AccountsPayableCurrent.json`;
+    // return `https://data.sec.gov/api/xbrl/companyconcept/CIK${fullCIKNumber}/us-gaap/AccountsPayableCurrent.json`;
+    return `https://data.sec.gov/api/xbrl/companyconcept/CIK${fullCIKNumber}/us-gaap/Assets.json`;
 }
 
 export function getMetadataObjectFromURL(url: string): Promise<any> {
