@@ -6,6 +6,7 @@ import { useState, useRef, useEffect } from "react";
 import { MessageSquare, Search, Check } from "lucide-react";
 
 import axios from "axios";
+const finnhub = require("finnhub");
 
 import { Button } from "@/components/ui/button";
 import {
@@ -63,11 +64,32 @@ export default function FinancialSearch() {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedCompanyName, setSelectedCompanyName] = useState("");
   const [searchMode, setSearchMode] = useState<"ticker" | "company">("ticker");
+  const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
   const searchRef = useRef<HTMLDivElement>(null);
   const ALPHAVANTAGE_KEY = process.env.ALPHAVANTAGE_KEY ?? null;
+  const FINNHUB_KEY = process.env.FINNHUB_KEY;
+
+  const fetchFinnhubQuote = async (symbol: string) => {
+    try {
+      const response = await axios.get("https://finnhub.io/api/v1/quote", {
+        params: {
+          symbol,
+          token: FINNHUB_KEY,
+        },
+      });
+      console.log(response.data);
+    } catch (error) {
+      console.error("Error fetching quote:", error);
+    }
+  };
+
+  fetchFinnhubQuote("AAPL");
 
   // Ref for auto-scrolling chat
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Ref for scrolling dropdown
+  const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -292,13 +314,48 @@ export default function FinancialSearch() {
   };
 
   // Handle company selection
-  const handleSelectCompany = (option: Company) => {
+  const handleSelectCompany = async (option: Company) => {
     setSelectedCompanyName(option.name);
     setTicker(option.symbol);
-    setSearchInput(option.symbol); // not showing ticker
+    setSearchInput(option.symbol); // Update the search input to show the ticker
     setShowDropdown(false);
     setSelectedTicker(option.symbol.toUpperCase());
     handleTickerRequest();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showDropdown || tickerOptions.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      // Highlight the first option if none is highlighted
+      setHighlightedIndex((prev) => {
+        const nextIndex =
+          prev === -1 ? 0 : Math.min(prev + 1, tickerOptions.length - 1);
+        optionRefs.current[nextIndex]?.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
+        return nextIndex;
+      });
+    } else if (e.key === "ArrowUp") {
+      // Prevent the highlight from going below 0
+      setHighlightedIndex((prev) => {
+        const nextIndex = Math.max(prev - 1, 0);
+        optionRefs.current[nextIndex]?.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
+        return nextIndex;
+      });
+    } else if (e.key === "Enter" && highlightedIndex >= 0) {
+      // Select the highlighted option
+      handleSelectCompany(tickerOptions[highlightedIndex]);
+      setHighlightedIndex(-1); // Reset the highlighted index
+    } else if (e.key === "Escape") {
+      // Close the dropdown
+      setShowDropdown(false);
+      setHighlightedIndex(-1);
+    }
   };
 
   const formatTime = (date: Date) => {
@@ -370,8 +427,10 @@ export default function FinancialSearch() {
                       setSearchInput(e.target.value);
                       fetchTickerSuggestions(e.target.value);
                       setShowDropdown(true);
+                      setHighlightedIndex(-1);
                     }}
                     onFocus={() => setShowDropdown(true)}
+                    onKeyDown={handleKeyDown}
                     className="w-full"
                   />
 
@@ -395,12 +454,17 @@ export default function FinancialSearch() {
                           </div>
                         ) : (
                           <div className="grid gap-1">
-                            {tickerOptions.map((option) => (
-                              <Button
+                            {tickerOptions.map((option, index) => (
+                              <button
                                 key={`${option.symbol}-${option.name}`}
-                                variant="ghost"
-                                className="flex w-full justify-start text-left"
+                                ref={(el) => {
+                                  optionRefs.current[index] = el;
+                                }}
+                                className={`flex w-full justify-start text-left ${
+                                  highlightedIndex === index ? "bg-muted" : ""
+                                }`}
                                 onClick={() => handleSelectCompany(option)}
+                                onMouseEnter={() => setHighlightedIndex(index)}
                               >
                                 <Check
                                   className={`mr-2 h-4 w-4 ${
@@ -417,7 +481,7 @@ export default function FinancialSearch() {
                                     {option.symbol}
                                   </span>
                                 </div>
-                              </Button>
+                              </button>
                             ))}
                           </div>
                         )}
