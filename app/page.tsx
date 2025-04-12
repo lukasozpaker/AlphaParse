@@ -3,7 +3,9 @@
 import type React from "react";
 
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, Search } from "lucide-react";
+import { MessageSquare, Search, Check } from "lucide-react";
+
+import axios from "axios";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +18,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { tickerToCIK } from "@/lib/resources";
 
 type QueryResult = {
@@ -38,6 +42,11 @@ type ChatMessage = {
   timestamp: Date;
 };
 
+type Company = {
+  symbol: string;
+  name: string;
+};
+
 export default function FinancialSearch() {
   const [ticker, setTicker] = useState("");
   const [query, setQuery] = useState("");
@@ -48,9 +57,14 @@ export default function FinancialSearch() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"query" | "chat">("query");
+  const [searchInput, setSearchInput] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [tickerOptions, setTickerOptions] = useState<Company[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedCompanyName, setSelectedCompanyName] = useState("");
+  const [searchMode, setSearchMode] = useState<"ticker" | "company">("ticker");
+  const searchRef = useRef<HTMLDivElement>(null);
   const ALPHAVANTAGE_KEY = process.env.ALPHAVANTAGE_KEY ?? null;
-
-  console.log(tickerToCIK("INTC"));
 
   // Ref for auto-scrolling chat
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -62,6 +76,55 @@ export default function FinancialSearch() {
     }
   }, [chatMessages, mode]);
 
+  // Handle clicks outside the dropdown to close it
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        searchRef.current &&
+        !searchRef.current.contains(event.target as Node)
+      ) {
+        setShowDropdown(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [searchRef]);
+
+  const fetchTickerSuggestions = async (search: string) => {
+    if (!search || search.length < 1) {
+      setTickerOptions([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await axios.get(
+        `https://ticker-2e1ica8b9.now.sh/keyword/${search}`
+      );
+
+      // Check if response.data exists and is an array
+      if (response.data && Array.isArray(response.data)) {
+        // Sort results by name
+        const sortedResults = [...response.data].sort((a, b) => {
+          return a.name.localeCompare(b.name);
+        });
+
+        setTickerOptions(sortedResults);
+      } else {
+        console.error("API response is not in expected format:", response);
+        setTickerOptions([]);
+      }
+    } catch (error) {
+      console.error("Error fetching ticker suggestions:", error);
+      setTickerOptions([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   const handleTickerSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ticker) return;
@@ -70,7 +133,6 @@ export default function FinancialSearch() {
 
     setSelectedTicker(ticker.toUpperCase());
     setLoading(false);
-
 
     const response = await fetch(
       `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker.toUpperCase()}&apikey=${ALPHAVANTAGE_KEY}`
@@ -84,7 +146,11 @@ export default function FinancialSearch() {
         exchange: "",
         industry: "",
         marketCap: "",
-        todayChange: `${parseFloat(globalQuote["10. change percent"]) > 0 ? "+" : ""}${parseFloat(globalQuote["10. change percent"].slice(0, -1)).toFixed(2)}%`,
+        todayChange: `${
+          parseFloat(globalQuote["10. change percent"]) > 0 ? "+" : ""
+        }${parseFloat(globalQuote["10. change percent"].slice(0, -1)).toFixed(
+          2
+        )}%`,
         volume: globalQuote["06. volume"],
         lastTradingDay: globalQuote["07. latest trading day"],
         price: `$${parseFloat(globalQuote["05. price"]).toFixed(2)}`,
@@ -92,7 +158,6 @@ export default function FinancialSearch() {
     } else {
       setTickerData(null);
     }
-
   };
 
   const handleInfoQuery = async (e: React.FormEvent) => {
@@ -196,6 +261,24 @@ export default function FinancialSearch() {
     }
   };
 
+  // Toggle search mode
+  const toggleSearchMode = () => {
+    setSearchMode(searchMode === "ticker" ? "company" : "ticker");
+    // Clear search inputs when switching modes
+    setSearchInput("");
+    setTicker("");
+    setShowDropdown(false);
+  };
+
+  // Handle company selection
+  const handleSelectCompany = (option: Company) => {
+    setSelectedCompanyName(option.name);
+    setTicker(option.symbol);
+    setSearchInput(option.symbol); // not showing ticker
+    setShowDropdown(false);
+    setSelectedTicker(option.symbol);
+  };
+
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
@@ -210,23 +293,117 @@ export default function FinancialSearch() {
       <div className="grid gap-8 md:grid-cols-2 mb-8">
         {/* Ticker search card */}
         <Card className="h-[200px] flex flex-col">
-          <CardHeader>
-            <CardTitle>Search for a Ticker</CardTitle>
-            <CardDescription>
-              Enter a stock symbol to begin your search
-            </CardDescription>
+          <CardHeader className="pb-2">
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>
+                  {searchMode === "ticker"
+                    ? "Enter Ticker Symbol"
+                    : "Search for a Company"}
+                </CardTitle>
+                <CardDescription>
+                  {searchMode === "ticker"
+                    ? "Enter a stock symbol directly"
+                    : "Search by company name or ticker"}
+                </CardDescription>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Label htmlFor="search-mode" className="text-xs">
+                  {searchMode === "ticker" ? "Ticker" : "Company"}
+                </Label>
+                <Switch
+                  id="search-mode"
+                  checked={searchMode === "company"}
+                  onCheckedChange={toggleSearchMode}
+                />
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="flex-grow flex items-center">
-            <form onSubmit={handleTickerSearch} className="flex gap-2 w-full">
-              <Input
-                placeholder="Enter ticker symbol (e.g., AAPL)"
-                value={ticker}
-                onChange={(e) => setTicker(e.target.value)}
-              />
-              <Button type="submit" disabled={loading}>
-                {loading ? "Searching..." : "Search"}
-              </Button>
-            </form>
+            <div className="w-full">
+              {searchMode === "ticker" ? (
+                // Simple ticker input mode
+                <form
+                  onSubmit={handleTickerSearch}
+                  className="flex gap-2 w-full"
+                >
+                  <Input
+                    placeholder="Enter ticker symbol (e.g., AAPL)"
+                    value={ticker}
+                    onChange={(e) => setTicker(e.target.value)}
+                    className="uppercase"
+                  />
+                  <Button type="submit" disabled={loading || !ticker}>
+                    {loading ? "Searching..." : "Search"}
+                  </Button>
+                </form>
+              ) : (
+                // Company search with simple dropdown
+                <div className="relative w-full" ref={searchRef}>
+                  <Input
+                    placeholder="Search company name or ticker..."
+                    value={searchInput || ""}
+                    onChange={(e) => {
+                      setSearchInput(e.target.value);
+                      fetchTickerSuggestions(e.target.value);
+                      setShowDropdown(true);
+                    }}
+                    onFocus={() => setShowDropdown(true)}
+                    className="w-full"
+                  />
+
+                  {/* Dropdown for search results */}
+                  {showDropdown && (
+                    <div className="absolute z-100 w-full mt-1 bg-popover rounded-md border shadow-md">
+                      <div className="max-h-[300px] overflow-auto p-1">
+                        {isSearching ? (
+                          <div className="flex items-center justify-center py-6">
+                            <p className="text-sm text-muted-foreground">
+                              Searching...
+                            </p>
+                          </div>
+                        ) : tickerOptions.length === 0 ? (
+                          <div className="flex items-center justify-center py-6">
+                            <p className="text-sm text-muted-foreground">
+                              {searchInput
+                                ? "No results found"
+                                : "Type to search for companies"}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="grid gap-1">
+                            {tickerOptions.map((option) => (
+                              <Button
+                                key={`${option.symbol}-${option.name}`}
+                                variant="ghost"
+                                className="flex w-full justify-start text-left"
+                                onClick={() => handleSelectCompany(option)}
+                              >
+                                <Check
+                                  className={`mr-2 h-4 w-4 ${
+                                    selectedCompanyName === option.name
+                                      ? "opacity-100"
+                                      : "opacity-0"
+                                  }`}
+                                />
+                                <div className="flex flex-col">
+                                  <span className="font-medium">
+                                    {option.name}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {option.symbol}
+                                  </span>
+                                </div>
+                              </Button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -290,11 +467,17 @@ export default function FinancialSearch() {
           value={mode}
         >
           <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
-            <TabsTrigger value="query" className="flex items-center gap-2 cursor-pointer">
+            <TabsTrigger
+              value="query"
+              className="flex items-center gap-2 cursor-pointer"
+            >
               <Search className="h-4 w-4" />
               <span>Query Mode</span>
             </TabsTrigger>
-            <TabsTrigger value="chat" className="flex items-center gap-2 cursor-pointer">
+            <TabsTrigger
+              value="chat"
+              className="flex items-center gap-2 cursor-pointer"
+            >
               <MessageSquare className="h-4 w-4" />
               <span>Chat Mode</span>
             </TabsTrigger>
@@ -326,7 +509,7 @@ export default function FinancialSearch() {
                           ? "E.g., current year revenue, profit margin"
                           : "Search for a ticker first..."
                       }
-                      value={query}
+                      value={query || ""}
                       onChange={(e) => setQuery(e.target.value)}
                       disabled={!selectedTicker}
                     />
