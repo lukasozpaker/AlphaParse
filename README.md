@@ -10,6 +10,7 @@ bun dev
 ```
 
 ## Need API keys as environment variables
+Set them up
 
 
 ## SEC filing API information
@@ -42,8 +43,10 @@ json.units.USD holds a list of all document information in format
 ```
 
 Step 2. 
+```
 Truncated CIK -> ##### 
 https://www.sec.gov/Archives/edgar/data/50863/000005086325000009/0000050863-25-000009.txt
+```
 
 https://www.sec.gov/Archives/edgar/data/`json.cik`/`json.units.USD[x].accn[fields 2 and 3]`/`json.units.USD[x].accn`.txt
 
