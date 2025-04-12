@@ -49,9 +49,9 @@ type Company = {
 
 export default function FinancialSearch() {
   const [ticker, setTicker] = useState("");
+  const [selectedTicker, setSelectedTicker] = useState("");
   const [query, setQuery] = useState("");
   const [chatInput, setChatInput] = useState("");
-  const [selectedTicker, setSelectedTicker] = useState("");
   const [tickerData, setTickerData] = useState<any>(null);
   const [queryResults, setQueryResults] = useState<QueryResult[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -130,39 +130,60 @@ export default function FinancialSearch() {
     if (!ticker) return;
 
     setLoading(true);
-
-    setSelectedTicker(ticker.toUpperCase());
+    setTicker(ticker.toUpperCase());
     setLoading(false);
 
+    setSelectedTicker(ticker.toUpperCase());
+    handleTickerRequest();
+  }
+
+  const handleTickerRequest = async () => {
+
     const response = await fetch(
-      `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker.toUpperCase()}&apikey=${ALPHAVANTAGE_KEY}`
+      `http://localhost:8080/ticker`
     );
     const data = await response.json();
-    if (data["Global Quote"]) {
-      const globalQuote = data["Global Quote"];
+    if (data) {
+      // const globalQuote = data;
+      // setTickerData({
+        // symbol: ticker.toUpperCase(),
+        // companyName: "",
+        // exchange: "",
+        // industry: "",
+        // marketCap: "",
+        // todayChange: `${
+          // parseFloat(globalQuote["10. change percent"]) > 0 ? "+" : ""
+        // }${parseFloat(globalQuote["10. change percent"].slice(0, -1)).toFixed(
+          // 2
+        // )}%`,
+        // volume: globalQuote["06. volume"],
+        // lastTradingDay: globalQuote["07. latest trading day"],
+        // price: `$${parseFloat(globalQuote["05. price"]).toFixed(2)}`,
+      // });
+
       setTickerData({
-        symbol: ticker.toUpperCase(),
-        companyName: "",
-        exchange: "",
-        industry: "",
-        marketCap: "",
+        symbol: selectedTicker.toUpperCase(),
+        companyName: data.companyName,
+        exchange: data.exchange,
+        industry: data.industry,
+        marketCap: data.marketCap,
         todayChange: `${
-          parseFloat(globalQuote["10. change percent"]) > 0 ? "+" : ""
-        }${parseFloat(globalQuote["10. change percent"].slice(0, -1)).toFixed(
-          2
-        )}%`,
-        volume: globalQuote["06. volume"],
-        lastTradingDay: globalQuote["07. latest trading day"],
-        price: `$${parseFloat(globalQuote["05. price"]).toFixed(2)}`,
-      });
+          parseFloat(data.todayChange) > 0 ? "+" : ""
+        }${parseFloat(data.todayChange.slice(0, -1)).toFixed(2)}%`,
+        volume: data.volume,
+        lastTradingDay: data.lastTradingDay,
+        price: `$${parseFloat(data.price.slice(1,)).toFixed(2)}`,
+        
+      })
     } else {
+      console.log("error fetching");
       setTickerData(null);
     }
   };
 
   const handleInfoQuery = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedTicker || !query) return;
+    if (!ticker || !query) return;
 
     setLoading(true);
     // Simulate API call for specific information from 10K and 10Q filings
@@ -175,7 +196,7 @@ export default function FinancialSearch() {
         timestamp: new Date(),
         query: query,
         type: "Financial Analysis",
-        message: `AI-generated insights about "${query}" for ${selectedTicker} based on recent financial filings`,
+        message: `AI-generated insights about "${query}" for ${ticker} based on recent financial filings`,
       };
 
       // Mock AI-generated data based on query
@@ -234,7 +255,7 @@ export default function FinancialSearch() {
       const aiResponse: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: generateAIResponse(chatInput, selectedTicker),
+        content: generateAIResponse(chatInput, ticker),
         timestamp: new Date(),
       };
 
@@ -276,7 +297,8 @@ export default function FinancialSearch() {
     setTicker(option.symbol);
     setSearchInput(option.symbol); // not showing ticker
     setShowDropdown(false);
-    setSelectedTicker(option.symbol);
+    setSelectedTicker(option.symbol.toUpperCase());
+    handleTickerRequest();
   };
 
   const formatTime = (date: Date) => {
@@ -315,6 +337,7 @@ export default function FinancialSearch() {
                   id="search-mode"
                   checked={searchMode === "company"}
                   onCheckedChange={toggleSearchMode}
+                  className="cursor-pointer"
                 />
               </div>
             </div>
@@ -333,7 +356,7 @@ export default function FinancialSearch() {
                     onChange={(e) => setTicker(e.target.value)}
                     className="uppercase"
                   />
-                  <Button type="submit" disabled={loading || !ticker}>
+                  <Button type="submit" disabled={loading || !ticker} className="cursor-pointer">
                     {loading ? "Searching..." : "Search"}
                   </Button>
                 </form>
@@ -413,7 +436,7 @@ export default function FinancialSearch() {
             <>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <span className="text-xl font-bold">{tickerData.symbol}</span>
+                  <span className="text-xl font-bold">{selectedTicker}</span>
                   <span className="text-lg font-normal text-muted-foreground">
                     {tickerData.companyName}
                   </span>
@@ -513,7 +536,7 @@ export default function FinancialSearch() {
                       onChange={(e) => setQuery(e.target.value)}
                       disabled={!selectedTicker}
                     />
-                    <Button type="submit" disabled={loading || !selectedTicker}>
+                    <Button type="submit" disabled={loading || !selectedTicker} className="cursor-pointer">
                       {loading ? "Querying..." : "Query"}
                     </Button>
                   </form>
