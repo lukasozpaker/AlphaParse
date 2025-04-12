@@ -54,24 +54,7 @@ export default function FinancialSearch() {
   const [searchMode, setSearchMode] = useState<"ticker" | "company">("ticker");
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
   const searchRef = useRef<HTMLDivElement>(null);
-  const ALPHAVANTAGE_KEY = process.env.ALPHAVANTAGE_KEY ?? null;
-  const FINNHUB_KEY = process.env.FINNHUB_KEY;
-
-  const fetchFinnhubQuote = async (symbol: string) => {
-    try {
-      const response = await axios.get("https://finnhub.io/api/v1/quote", {
-        params: {
-          symbol,
-          token: FINNHUB_KEY,
-        },
-      });
-      console.log(response.data);
-    } catch (error) {
-      console.error("Error fetching quote:", error);
-    }
-  };
-
-  fetchFinnhubQuote("AAPL");
+  const FINNHUB_KEY = process.env.NEXT_PUBLIC_FINNHUB_KEY;
 
   // Ref for auto-scrolling chat
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -188,52 +171,72 @@ export default function FinancialSearch() {
     setLoading(false);
 
     setSelectedTicker(ticker.toUpperCase());
-    handleTickerRequest();
-  }
-
-  const handleTickerRequest = async () => {
-
-    const response = await fetch(
-      `http://localhost:8080/ticker`
-    );
-    const data = await response.json();
-    if (data) {
-      // const globalQuote = data;
-      // setTickerData({
-        // symbol: ticker.toUpperCase(),
-        // companyName: "",
-        // exchange: "",
-        // industry: "",
-        // marketCap: "",
-        // todayChange: `${
-          // parseFloat(globalQuote["10. change percent"]) > 0 ? "+" : ""
-        // }${parseFloat(globalQuote["10. change percent"].slice(0, -1)).toFixed(
-          // 2
-        // )}%`,
-        // volume: globalQuote["06. volume"],
-        // lastTradingDay: globalQuote["07. latest trading day"],
-        // price: `$${parseFloat(globalQuote["05. price"]).toFixed(2)}`,
-      // });
-
-      setTickerData({
-        symbol: selectedTicker.toUpperCase(),
-        companyName: data.companyName,
-        exchange: data.exchange,
-        industry: data.industry,
-        marketCap: data.marketCap,
-        todayChange: `${
-          parseFloat(data.todayChange) > 0 ? "+" : ""
-        }${parseFloat(data.todayChange.slice(0, -1)).toFixed(2)}%`,
-        volume: data.volume,
-        lastTradingDay: data.lastTradingDay,
-        price: `$${parseFloat(data.price.slice(1,)).toFixed(2)}`,
-        
-      })
-    } else {
-      console.log("error fetching");
-      setTickerData(null);
-    }
+    // handleTickerRequest();
   };
+
+  useEffect(() => {
+    if (!selectedTicker) return;
+
+    const fetchTickerData = async () => {
+      try {
+        // Fetch data from the /quote endpoint
+        const quoteResponse = await axios.get(
+          "https://finnhub.io/api/v1/quote",
+          {
+            params: {
+              symbol: selectedTicker, // Use the updated selectedTicker
+              token: FINNHUB_KEY, // Use your API key
+            },
+          }
+        );
+
+        const quoteData = quoteResponse.data;
+
+        // Fetch data from the /company-profile2 endpoint
+        const profileResponse = await axios.get(
+          "https://finnhub.io/api/v1/stock/profile2",
+          {
+            params: {
+              symbol: selectedTicker, // Use the updated selectedTicker
+              token: FINNHUB_KEY, // Use your API key
+            },
+          }
+        );
+
+        const profileData = profileResponse.data;
+
+        if (quoteData && profileData) {
+          setTickerData({
+            symbol: selectedTicker,
+            companyName: profileData.name || "N/A",
+            exchange: profileData.exchange || "N/A",
+            industry: profileData.finnhubIndustry || "N/A",
+            marketCap: profileData.marketCapitalization
+              ? `$${profileData.marketCapitalization.toFixed(2)}B`
+              : "N/A",
+            todayChange: `${quoteData.d > 0 ? "+" : ""}$${quoteData.d.toFixed(
+              2
+            )} (${quoteData.dp.toFixed(2)}%)`,
+            lastTradingDay: profileData.ipo || "N/A",
+            price: `$${quoteData.c.toFixed(2)}`, // Current price
+            country: profileData.country || "N/A", // Country
+            currency: profileData.currency || "N/A", // Currency
+            phone: profileData.phone || "N/A", // Phone number
+            website: profileData.weburl || "N/A", // Website URL
+            logo: profileData.logo || "", // Company logo
+          });
+        } else {
+          console.error("No data returned from Finnhub API");
+          setTickerData(null);
+        }
+      } catch (error) {
+        console.error("Error fetching ticker data:", error);
+        setTickerData(null);
+      }
+    };
+
+    fetchTickerData();
+  }, [selectedTicker]);
 
   const handleInfoQuery = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -352,7 +355,6 @@ export default function FinancialSearch() {
     setSearchInput(option.symbol); // Update the search input to show the ticker
     setShowDropdown(false);
     setSelectedTicker(option.symbol.toUpperCase());
-    handleTickerRequest();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -445,7 +447,11 @@ export default function FinancialSearch() {
                     onChange={(e) => setTicker(e.target.value)}
                     className="uppercase"
                   />
-                  <Button type="submit" disabled={loading || !ticker} className="cursor-pointer">
+                  <Button
+                    type="submit"
+                    disabled={loading || !ticker}
+                    className="cursor-pointer"
+                  >
                     {loading ? "Searching..." : "Search"}
                   </Button>
                 </form>
@@ -527,40 +533,105 @@ export default function FinancialSearch() {
         </Card>
 
         {/* Ticker information card */}
-        <Card className="h-[200px] flex flex-col">
+        <Card className="h-auto flex flex-col">
           {tickerData ? (
             <>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <span className="text-xl font-bold">{selectedTicker}</span>
-                  <span className="text-lg font-normal text-muted-foreground">
-                    {tickerData.companyName}
-                  </span>
-                </CardTitle>
-                <CardDescription>
-                  {/* {tickerData.exchange} • {tickerData.industry} */}
-                  Volume: {tickerData.volume} • {tickerData.lastTradingDay}
-                </CardDescription>
+              <CardHeader className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <span className="text-xl font-bold">{selectedTicker}</span>
+                    <span className="text-lg font-normal text-muted-foreground">
+                      {tickerData.companyName}
+                    </span>
+                  </CardTitle>
+                  <CardDescription>
+                    {tickerData.exchange} • {tickerData.industry}
+                  </CardDescription>
+                </div>
+                {/* Logo */}
+                {tickerData.logo && (
+                  <img
+                    src={tickerData.logo}
+                    alt={`${tickerData.companyName} Logo`}
+                    className="h-12 w-auto"
+                  />
+                )}
               </CardHeader>
-              <CardContent className="flex-grow flex items-center">
+              <CardContent className="flex-grow flex flex-col items-start">
                 <div className="grid grid-cols-2 gap-4 w-full">
+                  {/* Current Price */}
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">
                       Current Price
                     </p>
                     <p className="text-lg font-medium">{tickerData.price}</p>
                   </div>
+
+                  {/* Change */}
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Change</p>
                     <p
                       className={`text-lg font-medium ${
-                        tickerData.todayChange.startsWith("-")
+                        tickerData.todayChange.startsWith("$-")
                           ? "text-red-600"
                           : "text-green-600"
                       }`}
                     >
                       {tickerData.todayChange}
                     </p>
+                  </div>
+
+                  {/* Market Cap */}
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Market Cap</p>
+                    <p className="text-lg font-medium">
+                      {tickerData.marketCap}
+                    </p>
+                  </div>
+
+                  {/* IPO Date */}
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">IPO Date</p>
+                    <p className="text-lg font-medium">
+                      {tickerData.lastTradingDay}
+                    </p>
+                  </div>
+
+                  {/* Country */}
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Country</p>
+                    <p className="text-lg font-medium">{tickerData.country}</p>
+                  </div>
+
+                  {/* Currency */}
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Currency</p>
+                    <p className="text-lg font-medium">{tickerData.currency}</p>
+                  </div>
+
+                  {/* Phone */}
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Phone</p>
+                    <p className="text-lg font-medium">{tickerData.phone}</p>
+                  </div>
+
+                  {/* Website */}
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Website</p>
+                    {tickerData.website !== "N/A" ? (
+                      <a
+                        href={tickerData.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 underline"
+                      >
+                        {tickerData.website}
+                      </a>
+                    ) : (
+                      <p className="text-lg font-medium">
+                        {tickerData.website}
+                      </p>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -632,7 +703,11 @@ export default function FinancialSearch() {
                       onChange={(e) => setQuery(e.target.value)}
                       disabled={!selectedTicker}
                     />
-                    <Button type="submit" disabled={loading || !selectedTicker} className="cursor-pointer">
+                    <Button
+                      type="submit"
+                      disabled={loading || !selectedTicker}
+                      className="cursor-pointer"
+                    >
                       {loading ? "Querying..." : "Query"}
                     </Button>
                   </form>
