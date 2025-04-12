@@ -69,7 +69,6 @@ export default function FinancialSearch() {
         setLoading(false);
 
 
-        // fetch real ticker data from Alpha Vantage API
         const response = await fetch(
             `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker.toUpperCase()}&apikey=${ALPHAVANTAGE_KEY}`
         );
@@ -240,11 +239,18 @@ export default function FinancialSearch() {
                                     </span>
                                 </CardTitle>
                                 <CardDescription>
-                                    {tickerData.exchange} • {tickerData.industry}
+                                    {/* {tickerData.exchange} • {tickerData.industry} */}
+                                    Volume: {tickerData.volume} • {tickerData.lastTradingDay}
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="flex-grow flex items-center">
                                 <div className="grid grid-cols-2 gap-4 w-full">
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-muted-foreground">
+                                            Current Price
+                                        </p>
+                                        <p className="text-lg font-medium">{tickerData.price}</p>
+                                    </div>
                                     <div className="space-y-1">
                                         <p className="text-sm text-muted-foreground">Change</p>
                                         <p
@@ -256,12 +262,6 @@ export default function FinancialSearch() {
                                         >
                                             {tickerData.todayChange}
                                         </p>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-sm text-muted-foreground">
-                                            Current Price
-                                        </p>
-                                        <p className="text-lg font-medium">{tickerData.price}</p>
                                     </div>
                                 </div>
                             </CardContent>
@@ -287,11 +287,11 @@ export default function FinancialSearch() {
                     value={mode}
                 >
                     <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
-                        <TabsTrigger value="query" className="flex items-center gap-2">
+                        <TabsTrigger value="query" className="flex items-center gap-2 cursor-pointer">
                             <Search className="h-4 w-4" />
                             <span>Query Mode</span>
                         </TabsTrigger>
-                        <TabsTrigger value="chat" className="flex items-center gap-2">
+                        <TabsTrigger value="chat" className="flex items-center gap-2 cursor-pointer">
                             <MessageSquare className="h-4 w-4" />
                             <span>Chat Mode</span>
                         </TabsTrigger>
