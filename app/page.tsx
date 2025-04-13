@@ -321,7 +321,7 @@ export default function FinancialSearch() {
     const prompt = `
       Analyze the following financial data and answer the query. 
       Provide a structured response that includes:
-      - A summary of the findings
+      - A summary of the findings. If related to money, include what denomination the values are in.
       - Relevant numerical data
       - Suggestions for visualization if applicable
     
