@@ -35,6 +35,7 @@ import {
   extractFinancialDataFrom10K,
   extractFinancialDataFrom10KwithTables,
 } from "@/lib/resources";
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, Legend, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 type QueryResult = {
   id: string;
@@ -43,11 +44,105 @@ type QueryResult = {
   query: string;
   currentYear?: string;
   previousYear?: string;
+  currentValue?: number;
+  previousValue?: number;
+  percentageChange?: number;
   growth?: string;
   count?: string;
   yearOverYearChange?: string;
   message?: string;
 };
+
+type StructuredQueryResponse = {
+  type: 'numerical' | 'textual' | 'chart';
+  summary: string;
+  data?: {
+    values?: number[];
+    labels?: string[];
+    currentValue?: number;
+    previousValue?: number;
+    percentageChange?: number;
+    chartType?: 'line' | 'bar' | 'pie';
+    series?: Array<{
+      name: string;
+      data: number[];
+    }>;
+  };
+  message?: string;
+};
+
+function transformDataForPie(currentData: any )  {
+  const labels = currentData.labels;
+  const values = currentData.values;
+  const transformedData  = [];
+
+  if (labels && values && labels.length === values.length) {
+    for (let i = 0; i < labels.length; i++) {
+      transformedData.push({
+        name: labels[i],
+        value: values[i],
+      });
+    }
+  }
+
+  console.log(transformedData);
+
+  return transformedData;
+}
+
+const QueryVisualization = ({ data }: { data: StructuredQueryResponse['data'] }) => {
+  if (!data || !data.chartType) return null;
+
+  const chartProps = {
+    width: 500,
+    height: 300,
+    data: data.series?.[0]?.data.map((value, index) => ({
+      name: data.labels?.[index] || '',
+      value
+    })) || []
+  };
+
+  console.log(chartProps);
+  console.log(typeof(chartProps.data));
+  console.log(typeof(chartProps));
+
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      {data.chartType === 'line' ? (
+        <LineChart {...chartProps}>
+          <XAxis dataKey="name" />
+          <YAxis />
+          <Tooltip />
+          <Line type="monotone" dataKey="value" stroke="#8884d8" />
+        </LineChart>
+      ) : data.chartType === 'bar' ? (
+        <BarChart {...chartProps}>
+          <XAxis dataKey="name" />
+          <YAxis />
+          <Tooltip />
+          <Bar dataKey="value" fill="#8884d8" />
+        </BarChart>
+      ) : (
+        <PieChart>
+          <Pie
+            data={transformDataForPie(data)}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="50%"
+            fill="#8884d8"
+          />
+          <Tooltip />
+        </PieChart>
+      )}
+    </ResponsiveContainer>
+  );
+};
+
+function stripCodeFence(text: any) {
+  const match = text.match(/```json\s*([\s\S]*?)\s*```/i);
+  return match ? match[1].trim() : text.trim();
+}
 
 export default function FinancialSearch() {
   const [ticker, setTicker] = useState("");
@@ -71,14 +166,64 @@ export default function FinancialSearch() {
   const FINNHUB_KEY = process.env.NEXT_PUBLIC_FINNHUB_KEY;
   const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
-  // const gemini = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+  const gemini = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
   // Ref for auto-scrolling chat
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Ref for scrolling dropdown
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  // Add this function to handle Gemini API calls
+  const processQueryWithGemini = async (
+    query: string, 
+    financialData: string
+  ): Promise<StructuredQueryResponse> => {
+    const prompt = `
+      Analyze the following financial data and answer the query. 
+      Provide a structured response that includes:
+      - A summary of the findings
+      - Relevant numerical data
+      - Suggestions for visualization if applicable
+    
+      Financial Data:
+      ${financialData}
+    
+      Query: ${query}
+    
+      Respond in the following JSON format, output only the raw JSON object. Do not include any markdown fences like \`\`\`json:
+      {
+        "type": "numerical" or "textual" or "chart",
+        "summary": "brief explanation",
+        "data": {
+          "values": [numbers if applicable],
+          "labels": [labels if applicable],
+          "currentValue": number if applicable,
+          "previousValue": number if applicable,
+          "percentageChange": number if applicable,
+          "chartType": "line" or "bar" or "pie" if applicable,
+          "series": [{ "name": "string", "data": [numbers] }] if applicable
+        }
+      }
+    
+      Only include relevant fields based on the query type.
+    `;
 
+    try {
+      const response = await gemini.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: prompt
+      });
+      console.log(stripCodeFence(response.text));
+
+      const result = JSON.parse(stripCodeFence(response.text) ?? '{}');
+      return result as StructuredQueryResponse;
+    } catch (error) {
+      console.error('Error processing query with Gemini:', error);
+      throw error;
+    }
+  };
+
+  // test the metadata function
   useEffect(() => {
     const fetch10KText = async () => {
       if (selectedTicker) {
@@ -96,7 +241,6 @@ export default function FinancialSearch() {
 
     fetch10KText();
   }, [selectedTicker]);
-
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     if (mode === "chat" && messagesEndRef.current) {
@@ -232,59 +376,90 @@ export default function FinancialSearch() {
     fetchTickerData();
   }, [selectedTicker]);
 
-  const handleInfoQuery = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ticker || !query) return;
+  // const handleInfoQuery = async (e: React.FormEvent) => {
+    // e.preventDefault();
+    // if (!ticker || !query) return;
 
-    setLoading(true);
-    // Simulate API call for specific information from 10K and 10Q filings
-    setTimeout(() => {
-      setLoading(false);
+    // setLoading(true);
+    // // Simulate API call for specific information from 10K and 10Q filings
+    // setTimeout(() => {
+      // setLoading(false);
 
-      // Generate a new query result
-      let newResult: QueryResult = {
-        id: Date.now().toString(),
-        timestamp: new Date(),
-        query: query,
-        type: "Financial Analysis",
-        message: `AI-generated insights about "${query}" for ${ticker} based on recent financial filings`,
-      };
+      // // Generate a new query result
+      // let newResult: QueryResult = {
+        // id: Date.now().toString(),
+        // timestamp: new Date(),
+        // query: query,
+        // type: "Financial Analysis",
+        // message: `AI-generated insights about "${query}" for ${ticker} based on recent financial filings`,
+      // };
 
-      // Mock AI-generated data based on query
-      if (query.toLowerCase().includes("revenue")) {
-        newResult = {
-          ...newResult,
-          type: "Revenue Analysis",
-          currentYear: "$394.3 billion",
-          previousYear: "$365.8 billion",
-          growth: "+7.8%",
-        };
-      } else if (
-        query.toLowerCase().includes("profit") ||
-        query.toLowerCase().includes("income")
-      ) {
-        newResult = {
-          ...newResult,
-          type: "Net Income Analysis",
-          currentYear: "$97.2 billion",
-          previousYear: "$94.7 billion",
-          growth: "+2.6%",
-        };
-      } else if (query.toLowerCase().includes("employee")) {
-        newResult = {
-          ...newResult,
-          type: "Employee Information",
-          count: "164,000",
-          yearOverYearChange: "+4.2%",
-        };
-      }
+      // // Mock AI-generated data based on query
+      // if (query.toLowerCase().includes("revenue")) {
+        // newResult = {
+          // ...newResult,
+          // type: "Revenue Analysis",
+          // currentYear: "$394.3 billion",
+          // previousYear: "$365.8 billion",
+          // growth: "+7.8%",
+        // };
+      // } else if (
+        // query.toLowerCase().includes("profit") ||
+        // query.toLowerCase().includes("income")
+      // ) {
+        // newResult = {
+          // ...newResult,
+          // type: "Net Income Analysis",
+          // currentYear: "$97.2 billion",
+          // previousYear: "$94.7 billion",
+          // growth: "+2.6%",
+        // };
+      // } else if (query.toLowerCase().includes("employee")) {
+        // newResult = {
+          // ...newResult,
+          // type: "Employee Information",
+          // count: "164,000",
+          // yearOverYearChange: "+4.2%",
+        // };
+      // }
 
-      // Add the new result to the beginning of the array (newest first)
-      setQueryResults((prev) => [newResult, ...prev]);
-      setQuery(""); // Clear the query input
-    }, 1000);
-  };
+      // // Add the new result to the beginning of the array (newest first)
+      // setQueryResults((prev) => [newResult, ...prev]);
+      // setQuery(""); // Clear the query input
+    // }, 1000);
+  // };
+const handleInfoQuery = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!selectedTicker || !query) return;
 
+  setLoading(true);
+  try {
+    // Get the financial data from your existing functions
+    // const financialData = await getMostRecent10KFormTextFromTicker(selectedTicker);
+    
+    // Process the query with Gemini
+    const result = await processQueryWithGemini(query, tenKText || "");
+
+    // Create a new query result
+    const newResult: QueryResult = {
+      id: Date.now().toString(),
+      timestamp: new Date(),
+      query: query,
+      type: result.type,
+      message: result.summary,
+      ...result.data
+    };
+
+    // Add the new result to the beginning of the array
+    setQueryResults((prev) => [newResult, ...prev]);
+    setQuery(""); // Clear the query input
+  } catch (error) {
+    console.error('Error processing query:', error);
+    // Handle error appropriately
+  } finally {
+    setLoading(false);
+  }
+};
   const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
@@ -337,23 +512,6 @@ export default function FinancialSearch() {
     }
   };
 
-  // Helper function to generate mock AI responses
-  const generateAIResponse = (message: string, ticker: string): string => {
-    if (message.toLowerCase().includes("revenue")) {
-      return `Based on ${ticker}'s latest 10-K filing, the company reported annual revenue of $394.3 billion, which represents a 7.8% increase from the previous year's $365.8 billion. This growth was primarily driven by their services segment, which saw a 14.2% year-over-year increase.`;
-    } else if (
-      message.toLowerCase().includes("profit") ||
-      message.toLowerCase().includes("income")
-    ) {
-      return `${ticker}'s net income for the most recent fiscal year was $97.2 billion, up 2.6% from $94.7 billion in the previous year. Their operating margin decreased slightly from 30.3% to 29.8% due to increased R&D investments.`;
-    } else if (message.toLowerCase().includes("employee")) {
-      return `According to the latest SEC filings, ${ticker} currently employs approximately 164,000 people worldwide, which is a 4.2% increase from the previous year. The company has been expanding its workforce primarily in AI research and cloud services divisions.`;
-    } else if (message.toLowerCase().includes("dividend")) {
-      return `${ticker} currently pays a quarterly dividend of $0.24 per share, which translates to an annual yield of approximately 0.55% at the current share price. The company has consistently increased its dividend for the past 10 years, with an average annual growth rate of 7.3%.`;
-    } else {
-      return `I've analyzed ${ticker}'s recent financial filings for information about "${message}". While I don't have specific data on this exact query, I can help you find related information in their 10-K or 10-Q reports. Would you like me to look for something more specific?`;
-    }
-  };
 
   // Toggle search mode
   const toggleSearchMode = () => {
@@ -736,76 +894,134 @@ export default function FinancialSearch() {
 
           {/* Right column - Query results */}
           <div className="space-y-4">
-            {selectedTicker && queryResults.length > 0 ? (
-              queryResults.map((result) => (
-                <Card key={result.id} className="border-2 border-primary/20">
-                  <CardHeader /*className="bg-primary/5"*/>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <span>{result.type}</span>
-                    </CardTitle>
-                    <CardDescription className="flex justify-between">
-                      <span>
-                        Data extracted from {selectedTicker}'s 10K and 10Q
-                        filings
-                      </span>
-                      <span className="text-xs">
-                        {formatTime(result.timestamp)}
-                      </span>
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    <div className="border rounded-lg p-4">
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Query: "{result.query}"
-                      </p>
+            {selectedTicker && queryResults.length > 0 ? 
+            
+            (queryResults.map((result) => (
+  <Card key={result.id} className="border-2 border-primary/20">
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2 text-base">
+        <span>{result.type}</span>
+      </CardTitle>
+      <CardDescription className="flex justify-between">
+        <span>Data extracted from {selectedTicker}'s 10K and 10Q filings</span>
+        <span className="text-xs">{formatTime(result.timestamp)}</span>
+      </CardDescription>
+    </CardHeader>
+    <CardContent className="pt-6">
+      <div className="border rounded-lg p-4">
+        <p className="text-sm text-muted-foreground mb-2">
+          Query: "{result.query}"
+        </p>
 
-                      {result.currentYear && (
-                        <div className="grid grid-cols-2 gap-4 mb-2">
-                          <div>
-                            <p className="text-sm text-muted-foreground">
-                              Current Year
-                            </p>
-                            <p className="font-medium">{result.currentYear}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">
-                              Previous Year
-                            </p>
-                            <p className="font-medium">{result.previousYear}</p>
-                          </div>
-                        </div>
-                      )}
+        {/* Summary */}
+        <p className="mb-4">{result.message}</p>
 
-                      {result.growth && (
-                        <div className="mt-2">
-                          <p className="text-sm text-muted-foreground">
-                            Growth
-                          </p>
-                          <p
-                            className={`font-medium ${
-                              result.growth.startsWith("+")
-                                ? "text-green-600"
-                                : "text-red-600"
-                            }`}
-                          >
-                            {result.growth}
-                          </p>
-                        </div>
-                      )}
+        {/* Numerical Data */}
+        {result.currentValue && (
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Current Value</p>
+              <p className="font-medium">{result.currentValue}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Previous Value</p>
+              <p className="font-medium">{result.previousValue}</p>
+            </div>
+            {result.percentageChange && (
+              <div>
+                <p className="text-sm text-muted-foreground">Change</p>
+                <p className={`font-medium ${
+                  result.percentageChange > 0 ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {result.percentageChange > 0 ? '+' : ''}
+                  {result.percentageChange}%
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
-                      {result.count && (
-                        <div>
-                          <p className="text-sm text-muted-foreground">Count</p>
-                          <p className="font-medium">{result.count}</p>
-                        </div>
-                      )}
+        {/* Visualization */}
+        {result.type === 'chart' && (
+          <div className="mt-4">
+            <QueryVisualization data={result} />
+          </div>
+        )}
+      </div>
+    </CardContent>
+  </Card>
+)))
+            // (
+            //   queryResults.map((result) => (
+            //     <Card key={result.id} className="border-2 border-primary/20">
+            //       <CardHeader /*className="bg-primary/5"*/>
+            //         <CardTitle className="flex items-center gap-2 text-base">
+            //           <span>{result.type}</span>
+            //         </CardTitle>
+            //         <CardDescription className="flex justify-between">
+            //           <span>
+            //             Data extracted from {selectedTicker}'s 10K and 10Q
+            //             filings
+            //           </span>
+            //           <span className="text-xs">
+            //             {formatTime(result.timestamp)}
+            //           </span>
+            //         </CardDescription>
+            //       </CardHeader>
+            //       <CardContent className="pt-6">
+            //         <div className="border rounded-lg p-4">
+            //           <p className="text-sm text-muted-foreground mb-2">
+            //             Query: "{result.query}"
+            //           </p>
 
-                      {result.message && <p>{result.message}</p>}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
+            //           {result.currentYear && (
+            //             <div className="grid grid-cols-2 gap-4 mb-2">
+            //               <div>
+            //                 <p className="text-sm text-muted-foreground">
+            //                   Current Year
+            //                 </p>
+            //                 <p className="font-medium">{result.currentYear}</p>
+            //               </div>
+            //               <div>
+            //                 <p className="text-sm text-muted-foreground">
+            //                   Previous Year
+            //                 </p>
+            //                 <p className="font-medium">{result.previousYear}</p>
+            //               </div>
+            //             </div>
+            //           )}
+
+            //           {result.growth && (
+            //             <div className="mt-2">
+            //               <p className="text-sm text-muted-foreground">
+            //                 Growth
+            //               </p>
+            //               <p
+            //                 className={`font-medium ${
+            //                   result.growth.startsWith("+")
+            //                     ? "text-green-600"
+            //                     : "text-red-600"
+            //                 }`}
+            //               >
+            //                 {result.growth}
+            //               </p>
+            //             </div>
+            //           )}
+
+            //           {result.count && (
+            //             <div>
+            //               <p className="text-sm text-muted-foreground">Count</p>
+            //               <p className="font-medium">{result.count}</p>
+            //             </div>
+            //           )}
+
+            //           {result.message && <p>{result.message}</p>}
+            //         </div>
+            //       </CardContent>
+            //     </Card>
+            //   ))
+            // ) 
+            : (
               <div className="flex flex-col items-center justify-center h-[200px] border rounded-lg p-8 bg-muted/50">
                 <Search className="h-8 w-8 text-muted-foreground mb-4" />
                 <p className="text-center text-muted-foreground">
