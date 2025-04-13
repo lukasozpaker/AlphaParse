@@ -1045,8 +1045,7 @@ const handleInfoQuery = async (e: React.FormEvent) => {
                           </div>
                         )}
                       {result.type === "numerical" &&
-                        result.data?.currentValue &&
-                        result.data?.previousValue && (
+                        result.data?.currentValue && (
                           <div className="grid grid-cols-2 gap-4 mb-4">
                             <div>
                               <p className="text-sm text-muted-foreground">
@@ -1056,30 +1055,36 @@ const handleInfoQuery = async (e: React.FormEvent) => {
                                 {result.data.currentValue.toLocaleString()}
                               </p>
                             </div>
-                            <div>
-                              <p className="text-sm text-muted-foreground">
-                                Previous Value
-                              </p>
-                              <p className="font-medium">
-                                {result.data.previousValue.toLocaleString()}
-                              </p>
-                            </div>
-                            {result.data.percentageChange !== undefined && (
-                              <div>
-                                <p className="text-sm text-muted-foreground">
-                                  Change
-                                </p>
-                                <p
-                                  className={`font-medium ${
-                                    result.data.percentageChange > 0
-                                      ? "text-green-600"
-                                      : "text-red-600"
-                                  }`}
-                                >
-                                  {result.data.percentageChange > 0 ? "+" : ""}
-                                  {result.data.percentageChange.toFixed(2)}%
-                                </p>
-                              </div>
+                            {result.data.previousValue && (
+                              <>
+                                <div>
+                                  <p className="text-sm text-muted-foreground">
+                                    Previous Value
+                                  </p>
+                                  <p className="font-medium">
+                                    {result.data.previousValue.toLocaleString()}
+                                  </p>
+                                </div>
+                                {result.data.percentageChange !== undefined && (
+                                  <div>
+                                    <p className="text-sm text-muted-foreground">
+                                      Change
+                                    </p>
+                                    <p
+                                      className={`font-medium ${
+                                        result.data.percentageChange > 0
+                                          ? "text-green-600"
+                                          : "text-red-600"
+                                      }`}
+                                    >
+                                      {result.data.percentageChange > 0
+                                        ? "+"
+                                        : ""}
+                                      {result.data.percentageChange.toFixed(2)}%
+                                    </p>
+                                  </div>
+                                )}
+                              </>
                             )}
                           </div>
                         )}
