@@ -38,21 +38,6 @@ import {
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, Legend, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart"
-type QueryResult = {
-  id: string;
-  timestamp: Date;
-  type: string;
-  query: string;
-  currentYear?: string;
-  previousYear?: string;
-  currentValue?: number;
-  previousValue?: number;
-  percentageChange?: number;
-  growth?: string;
-  count?: string;
-  yearOverYearChange?: string;
-  message?: string;
-};
 
 type StructuredQueryResponse = {
   type: 'numerical' | 'textual' | 'chart';
@@ -97,44 +82,143 @@ function transformDataForPie(currentData: any )  {
   return transformedData;
 }
 
+// const QueryVisualization = ({ data }: { data: StructuredQueryResponse['data'] }) => {
+//   if (!data || !data.chartType) return null;
+
+//   const chartProps = {
+//     width: 500,
+//     height: 300,
+//     data: data.series?.[0]?.data.map((value, index) => ({
+//       name: data.labels?.[index] || '',
+//       value
+//     })) || []
+//   };
+
+//   console.log(chartProps);
+//   console.log(typeof(chartProps));
+
+//   const chartConfig = {};
+
+//   return (
+//     <ChartContainer config={chartConfig} className="min-h-[50px] ">
+//       {data.chartType === "line" ? (
+//         <LineChart {...chartProps}>
+//           <XAxis dataKey="name" />
+//           <YAxis />
+//           <Tooltip />
+//           <Line type="monotone" dataKey="value" stroke="#8884d8" />
+//         </LineChart>
 const QueryVisualization = ({ data }: { data: StructuredQueryResponse['data'] }) => {
   if (!data || !data.chartType) return null;
+
+  // Transform data for all chart types
+  let transformedData = [];
+  
+  if (data.chartType === 'bar') {
+    if (data.series && data.labels) {
+      // Handle series format
+      transformedData = data.labels.map((label, index) => {
+        const point: any = { name: label };
+        data.series?.forEach(series => {
+          point[series.name] = series.data[index];
+        });
+        return point;
+      });
+    } else if (data.values && data.labels) {
+      // Handle simple values format
+      transformedData = data.labels.map((label, index) => ({
+        name: label,
+        value: data.values?.[index]
+      }));
+    }
+  } else if (data.chartType === 'line' && data.series && data.labels) {
+    // Keep existing line chart transformation
+    transformedData = data.labels.map((label, index) => {
+      const point: any = { name: label };
+      data.series?.forEach(series => {
+        point[series.name] = series.data[index];
+      });
+      return point;
+    });
+  } else {
+    // Keep existing transformation for pie charts
+    transformedData = data.series?.[0]?.data.map((value, index) => ({
+      name: data.labels?.[index] || '',
+      value
+    })) || [];
+  }
 
   const chartProps = {
     width: 500,
     height: 300,
-    data: data.series?.[0]?.data.map((value, index) => ({
-      name: data.labels?.[index] || '',
-      value
-    })) || []
+    data: transformedData
   };
 
-  console.log(chartProps);
-  console.log(typeof(chartProps));
-
-const chartConfig = {
-}
-
   return (
-    <ChartContainer config={chartConfig} className="min-h-[50px] ">
+    <ChartContainer config={{}} className="min-h-[50px]">
       {data.chartType === "line" ? (
         <LineChart {...chartProps}>
           <XAxis dataKey="name" />
           <YAxis />
           <Tooltip />
-          <Line type="monotone" dataKey="value" stroke="#8884d8" />
+          <Legend />
+          {data.series?.map((series, index) => (
+            <Line
+              key={series.name}
+              type="monotone"
+              dataKey={series.name}
+              stroke={[
+                "#03071e",
+                "#370617", 
+                "#6a040f",
+                "#9d0208",
+                "#d00000",
+                "#dc2f02",
+                "#e85d04",
+                "#f48c06",
+                "#faa307",
+                "#ffba08"
+              ][index % 10]}
+            />
+          ))}
         </LineChart>
-      ) : data.chartType === "bar" ? (
+       
+      ) 
+      
+      : data.chartType === "bar" ? (
         <BarChart {...chartProps}>
-          <XAxis dataKey="name"/>
+          <XAxis dataKey="name" />
           <YAxis />
           <Tooltip />
-          <Bar dataKey="value" fill="#8884d8" radius={4}>
-            {chartProps.data.map((entry, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={
-                  [
+          <Legend />
+          {data.series ? (
+            // Render multiple bars for series format
+            data.series.map((series, index) => (
+              <Bar
+                key={series.name}
+                dataKey={series.name}
+                fill={[
+                  "#03071e",
+                  "#370617",
+                  "#6a040f",
+                  "#9d0208",
+                  "#d00000",
+                  "#dc2f02",
+                  "#e85d04",
+                  "#f48c06",
+                  "#faa307",
+                  "#ffba08",
+                ][index % 10]}
+                radius={4}
+              />
+            ))
+          ) : (
+            // Render single bar for values format
+            <Bar dataKey="value" fill="#8884d8" radius={4}>
+              {transformedData.map((entry, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={[
                     "#03071e",
                     "#370617",
                     "#6a040f",
@@ -145,13 +229,16 @@ const chartConfig = {
                     "#f48c06",
                     "#faa307",
                     "#ffba08",
-                  ][index % 10]
-                }
-              />
-            ))}
+                  ][index % 10]}
+                />
+              ))}
             </Bar>
+          )}
         </BarChart>
-      ) : (
+      ) :
+      
+      
+       (
         <PieChart>
           <Pie
             data={transformDataForPie(data)}
@@ -202,7 +289,6 @@ export default function FinancialSearch() {
   const [query, setQuery] = useState("");
   const [chatInput, setChatInput] = useState("");
   const [tickerData, setTickerData] = useState<any>(null);
-  const [queryResults, setQueryResults] = useState<QueryResult[]>([]);
   const [structuredQueryResults, setStructuredQueryResults] = useState<StructuredQueryResponse[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [tickerLoading, setTickerLoading] = useState(false);
@@ -244,7 +330,7 @@ export default function FinancialSearch() {
     
       Query: ${query}
     
-      Respond in the following JSON format, output only the raw JSON object. Do not include any markdown fences like \`\`\`json. For pie charts use values and labels fields:
+      Respond in the following JSON format, output only the raw JSON object. Do not include any markdown fences like \`\`\`json. For pie charts use values and labels fields. Only one graph per response:
       {
         "type": "numerical" or "textual" or "chart",
         "summary": "brief explanation of what is being displayed",
@@ -430,79 +516,14 @@ export default function FinancialSearch() {
     fetchTickerData();
   }, [selectedTicker]);
 
-  // const handleInfoQuery = async (e: React.FormEvent) => {
-    // e.preventDefault();
-    // if (!ticker || !query) return;
-
-    // setLoading(true);
-    // // Simulate API call for specific information from 10K and 10Q filings
-    // setTimeout(() => {
-      // setLoading(false);
-
-      // // Generate a new query result
-      // let newResult: QueryResult = {
-        // id: Date.now().toString(),
-        // timestamp: new Date(),
-        // query: query,
-        // type: "Financial Analysis",
-        // message: `AI-generated insights about "${query}" for ${ticker} based on recent financial filings`,
-      // };
-
-      // // Mock AI-generated data based on query
-      // if (query.toLowerCase().includes("revenue")) {
-        // newResult = {
-          // ...newResult,
-          // type: "Revenue Analysis",
-          // currentYear: "$394.3 billion",
-          // previousYear: "$365.8 billion",
-          // growth: "+7.8%",
-        // };
-      // } else if (
-        // query.toLowerCase().includes("profit") ||
-        // query.toLowerCase().includes("income")
-      // ) {
-        // newResult = {
-          // ...newResult,
-          // type: "Net Income Analysis",
-          // currentYear: "$97.2 billion",
-          // previousYear: "$94.7 billion",
-          // growth: "+2.6%",
-        // };
-      // } else if (query.toLowerCase().includes("employee")) {
-        // newResult = {
-          // ...newResult,
-          // type: "Employee Information",
-          // count: "164,000",
-          // yearOverYearChange: "+4.2%",
-        // };
-      // }
-
-      // // Add the new result to the beginning of the array (newest first)
-      // setQueryResults((prev) => [newResult, ...prev]);
-      // setQuery(""); // Clear the query input
-    // }, 1000);
-  // };
 const handleInfoQuery = async (e: React.FormEvent) => {
   e.preventDefault();
   if (!selectedTicker || !query) return;
 
   setLoading(true);
   try {
-    // Get the financial data from your existing functions
-    // const financialData = await getMostRecent10KFormTextFromTicker(selectedTicker);
-    
-    // Process the query with Gemini
     const result = await processQueryWithGemini(query, tenKText || "");
 
-    // Create a new query result
-    // const newResult: QueryResult = {
-    //   id: Date.now().toString(),
-    //   timestamp: new Date(),
-    //   query: query,
-    //   type: result.type,
-    //   message: result.summary,
-    //   ...result.data
-    // };
     const newResult: StructuredQueryResponse = {
       id: Date.now().toString(),
       timestamp: new Date(),
@@ -1056,29 +1077,6 @@ const handleInfoQuery = async (e: React.FormEvent) => {
                             )}
                           </div>
                         )}
-                      {/* {result.currentValue && (
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Current Value</p>
-              <p className="font-medium">{result.currentValue}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Previous Value</p>
-              <p className="font-medium">{result.previousValue}</p>
-            </div>
-            {result.percentageChange && (
-              <div>
-                <p className="text-sm text-muted-foreground">Change</p>
-                <p className={`font-medium ${
-                  result.percentageChange > 0 ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {result.percentageChange > 0 ? '+' : ''}
-                  {result.percentageChange}%
-                </p>
-              </div>
-            )}
-          </div>
-        )} */}
 
                       {/* Visualization */}
                       {(result.type === "chart" || result.data?.chartType) && (
@@ -1091,76 +1089,6 @@ const handleInfoQuery = async (e: React.FormEvent) => {
                 </Card>
               ))
             ) : (
-              // (
-              //   queryResults.map((result) => (
-              //     <Card key={result.id} className="border-2 border-primary/20">
-              //       <CardHeader /*className="bg-primary/5"*/>
-              //         <CardTitle className="flex items-center gap-2 text-base">
-              //           <span>{result.type}</span>
-              //         </CardTitle>
-              //         <CardDescription className="flex justify-between">
-              //           <span>
-              //             Data extracted from {selectedTicker}'s 10K and 10Q
-              //             filings
-              //           </span>
-              //           <span className="text-xs">
-              //             {formatTime(result.timestamp)}
-              //           </span>
-              //         </CardDescription>
-              //       </CardHeader>
-              //       <CardContent className="pt-6">
-              //         <div className="border rounded-lg p-4">
-              //           <p className="text-sm text-muted-foreground mb-2">
-              //             Query: "{result.query}"
-              //           </p>
-
-              //           {result.currentYear && (
-              //             <div className="grid grid-cols-2 gap-4 mb-2">
-              //               <div>
-              //                 <p className="text-sm text-muted-foreground">
-              //                   Current Year
-              //                 </p>
-              //                 <p className="font-medium">{result.currentYear}</p>
-              //               </div>
-              //               <div>
-              //                 <p className="text-sm text-muted-foreground">
-              //                   Previous Year
-              //                 </p>
-              //                 <p className="font-medium">{result.previousYear}</p>
-              //               </div>
-              //             </div>
-              //           )}
-
-              //           {result.growth && (
-              //             <div className="mt-2">
-              //               <p className="text-sm text-muted-foreground">
-              //                 Growth
-              //               </p>
-              //               <p
-              //                 className={`font-medium ${
-              //                   result.growth.startsWith("+")
-              //                     ? "text-green-600"
-              //                     : "text-red-600"
-              //                 }`}
-              //               >
-              //                 {result.growth}
-              //               </p>
-              //             </div>
-              //           )}
-
-              //           {result.count && (
-              //             <div>
-              //               <p className="text-sm text-muted-foreground">Count</p>
-              //               <p className="font-medium">{result.count}</p>
-              //             </div>
-              //           )}
-
-              //           {result.message && <p>{result.message}</p>}
-              //         </div>
-              //       </CardContent>
-              //     </Card>
-              //   ))
-              // )
               <div className="flex flex-col items-center justify-center h-[200px] border rounded-lg p-8 bg-muted/50">
                 <Search className="h-8 w-8 text-muted-foreground mb-4" />
                 <p className="text-center text-muted-foreground">
