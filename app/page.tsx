@@ -35,8 +35,9 @@ import {
   extractFinancialDataFrom10K,
   extractFinancialDataFrom10KwithTables,
 } from "@/lib/resources";
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, Legend, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, Legend, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 
+import { ChartContainer, ChartTooltipContent, ChartConfig } from "@/components/ui/chart"
 type QueryResult = {
   id: string;
   timestamp: Date;
@@ -69,6 +70,9 @@ type StructuredQueryResponse = {
     }>;
   };
   message?: string;
+  id?: string;
+  timestamp?: Date;
+  query?: string;
 };
 
 function transformDataForPie(currentData: any )  {
@@ -106,21 +110,44 @@ const QueryVisualization = ({ data }: { data: StructuredQueryResponse['data'] })
   console.log(typeof(chartProps.data));
   console.log(typeof(chartProps));
 
+const chartConfig = {
+}
+
   return (
-    <ResponsiveContainer width="100%" height={300}>
-      {data.chartType === 'line' ? (
+    <ChartContainer config={chartConfig} className="min-h-[50px] w-full">
+      {data.chartType === "line" ? (
         <LineChart {...chartProps}>
           <XAxis dataKey="name" />
           <YAxis />
           <Tooltip />
           <Line type="monotone" dataKey="value" stroke="#8884d8" />
         </LineChart>
-      ) : data.chartType === 'bar' ? (
+      ) : data.chartType === "bar" ? (
         <BarChart {...chartProps}>
           <XAxis dataKey="name" />
           <YAxis />
           <Tooltip />
-          <Bar dataKey="value" fill="#8884d8" />
+          <Bar dataKey="value" fill="#8884d8" radius={4}>
+            {chartProps.data.map((entry, index) => (
+              <Cell
+                key={`cell-${index}`}
+                fill={
+                  [
+                    "#03071e",
+                    "#370617",
+                    "#6a040f",
+                    "#9d0208",
+                    "#d00000",
+                    "#dc2f02",
+                    "#e85d04",
+                    "#f48c06",
+                    "#faa307",
+                    "#ffba08",
+                  ][index % 10]
+                }
+              />
+            ))}
+            </Bar>
         </BarChart>
       ) : (
         <PieChart>
@@ -131,11 +158,34 @@ const QueryVisualization = ({ data }: { data: StructuredQueryResponse['data'] })
             cx="50%"
             cy="50%"
             fill="#8884d8"
-          />
+            label
+          >
+            {transformDataForPie(data).map((entry, index) => (
+              <Cell
+                key={`cell-${index}`}
+                fill={
+                  [
+                    "#03071e",
+                    "#370617",
+                    "#6a040f",
+                    "#9d0208",
+                    "#d00000",
+                    "#dc2f02",
+                    "#e85d04",
+                    "#f48c06",
+                    "#faa307",
+                    "#ffba08",
+                  ][index % 10]
+                }
+              />
+
+            ))}
+          </Pie>
           <Tooltip />
+          <Legend layout="vertical" align="right" verticalAlign="middle" />
         </PieChart>
       )}
-    </ResponsiveContainer>
+    </ChartContainer>
   );
 };
 
@@ -151,6 +201,7 @@ export default function FinancialSearch() {
   const [chatInput, setChatInput] = useState("");
   const [tickerData, setTickerData] = useState<any>(null);
   const [queryResults, setQueryResults] = useState<QueryResult[]>([]);
+  const [structuredQueryResults, setStructuredQueryResults] = useState<StructuredQueryResponse[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"query" | "chat">("query");
@@ -441,17 +492,24 @@ const handleInfoQuery = async (e: React.FormEvent) => {
     const result = await processQueryWithGemini(query, tenKText || "");
 
     // Create a new query result
-    const newResult: QueryResult = {
+    // const newResult: QueryResult = {
+    //   id: Date.now().toString(),
+    //   timestamp: new Date(),
+    //   query: query,
+    //   type: result.type,
+    //   message: result.summary,
+    //   ...result.data
+    // };
+    const newResult: StructuredQueryResponse = {
       id: Date.now().toString(),
       timestamp: new Date(),
       query: query,
-      type: result.type,
-      message: result.summary,
-      ...result.data
-    };
+      ...result,
+    }
 
     // Add the new result to the beginning of the array
-    setQueryResults((prev) => [newResult, ...prev]);
+    // setQueryResults((prev) => [newResult, ...prev]);
+    setStructuredQueryResults((prev) => [newResult, ...prev]);
     setQuery(""); // Clear the query input
   } catch (error) {
     console.error('Error processing query:', error);
@@ -894,30 +952,48 @@ const handleInfoQuery = async (e: React.FormEvent) => {
 
           {/* Right column - Query results */}
           <div className="space-y-4">
-            {selectedTicker && queryResults.length > 0 ? 
+            {selectedTicker && structuredQueryResults.length > 0 ? 
             
-            (queryResults.map((result) => (
+            (structuredQueryResults.map((result) => (
   <Card key={result.id} className="border-2 border-primary/20">
     <CardHeader>
       <CardTitle className="flex items-center gap-2 text-base">
-        <span>{result.type}</span>
+        <span>{result.type.charAt(0).toUpperCase() + result.type.slice(1)}</span>
       </CardTitle>
       <CardDescription className="flex justify-between">
         <span>Data extracted from {selectedTicker}'s 10K and 10Q filings</span>
-        <span className="text-xs">{formatTime(result.timestamp)}</span>
+        <span className="text-xs">{formatTime(result.timestamp || new Date())}</span>
       </CardDescription>
     </CardHeader>
-    <CardContent className="pt-6">
+    <CardContent className="pt-1">
       <div className="border rounded-lg p-4">
         <p className="text-sm text-muted-foreground mb-2">
           Query: "{result.query}"
         </p>
 
         {/* Summary */}
-        <p className="mb-4">{result.message}</p>
+        <p className="mb-4">{result.summary}</p>
 
         {/* Numerical Data */}
-        {result.currentValue && (
+
+        {/* Numerical Data with Labels and Values */}
+        {result.type === 'numerical' && result.data?.labels && result.data?.values && (
+          <div className="space-y-4">
+            {result.data?.labels.map((label, index) => (
+              <div key={label} className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">{label}</p>
+                </div>
+                <div>
+                  <p className="font-medium">
+                    {result.data?.values ? result.data?.values[index].toLocaleString() : "N/A"} 
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {/* {result.currentValue && (
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <p className="text-sm text-muted-foreground">Current Value</p>
@@ -939,12 +1015,12 @@ const handleInfoQuery = async (e: React.FormEvent) => {
               </div>
             )}
           </div>
-        )}
+        )} */}
 
         {/* Visualization */}
-        {result.type === 'chart' && (
+        {(result.type === 'chart' || result.data?.chartType) && (
           <div className="mt-4">
-            <QueryVisualization data={result} />
+            <QueryVisualization data={result.data} />
           </div>
         )}
       </div>
