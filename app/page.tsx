@@ -244,7 +244,7 @@ export default function FinancialSearch() {
     
       Query: ${query}
     
-      Respond in the following JSON format, output only the raw JSON object. Do not include any markdown fences like \`\`\`json:
+      Respond in the following JSON format, output only the raw JSON object. Do not include any markdown fences like \`\`\`json. For pie charts use values and labels fields:
       {
         "type": "numerical" or "textual" or "chart",
         "summary": "brief explanation of what is being displayed",
@@ -636,7 +636,7 @@ const handleInfoQuery = async (e: React.FormEvent) => {
       <h1 className="text-center mb-8">
         <span className="text-3xl font-bold">AlphaParse</span>
         <p className="text-sm text-muted-foreground">
-          Financial statement parser and query engine.
+          Financial statement parser and query engine
         </p>
       </h1>
 
@@ -682,8 +682,7 @@ const handleInfoQuery = async (e: React.FormEvent) => {
                   <Input
                     placeholder="Enter ticker symbol (e.g., AAPL)"
                     value={ticker}
-                    onChange={(e) => setTicker(e.target.value)}
-                    className="uppercase"
+                    onChange={(e) => setTicker(e.target.value.toUpperCase())}
                   />
                   <Button
                     type="submit"
@@ -1082,7 +1081,7 @@ const handleInfoQuery = async (e: React.FormEvent) => {
         )} */}
 
                       {/* Visualization */}
-                      {result.type === "chart" && (
+                      {result.type === "chart" || result.data?.chartType && (
                         <div className="mt-4">
                           <QueryVisualization data={result.data} />
                         </div>
