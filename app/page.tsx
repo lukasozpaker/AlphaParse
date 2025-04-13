@@ -37,7 +37,7 @@ import {
 } from "@/lib/resources";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, Legend, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 
-import { ChartContainer, ChartTooltipContent, ChartConfig } from "@/components/ui/chart"
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart"
 type QueryResult = {
   id: string;
   timestamp: Date;
@@ -74,6 +74,9 @@ type StructuredQueryResponse = {
   timestamp?: Date;
   query?: string;
 };
+let renderLabel = function(entry: any) {
+    return entry.name;
+}
 
 function transformDataForPie(currentData: any )  {
   const labels = currentData.labels;
@@ -107,14 +110,13 @@ const QueryVisualization = ({ data }: { data: StructuredQueryResponse['data'] })
   };
 
   console.log(chartProps);
-  console.log(typeof(chartProps.data));
   console.log(typeof(chartProps));
 
 const chartConfig = {
 }
 
   return (
-    <ChartContainer config={chartConfig} className="min-h-[50px] w-full">
+    <ChartContainer config={chartConfig} className="min-h-[50px] ">
       {data.chartType === "line" ? (
         <LineChart {...chartProps}>
           <XAxis dataKey="name" />
@@ -124,7 +126,7 @@ const chartConfig = {
         </LineChart>
       ) : data.chartType === "bar" ? (
         <BarChart {...chartProps}>
-          <XAxis dataKey="name" />
+          <XAxis dataKey="name"/>
           <YAxis />
           <Tooltip />
           <Bar dataKey="value" fill="#8884d8" radius={4}>
@@ -158,7 +160,7 @@ const chartConfig = {
             cx="50%"
             cy="50%"
             fill="#8884d8"
-            label
+            label={renderLabel}
           >
             {transformDataForPie(data).map((entry, index) => (
               <Cell
@@ -182,7 +184,7 @@ const chartConfig = {
             ))}
           </Pie>
           <Tooltip />
-          <Legend layout="vertical" align="right" verticalAlign="middle" />
+          {/* <Legend layout="vertical" align="right" verticalAlign="middle" /> */}
         </PieChart>
       )}
     </ChartContainer>
@@ -203,6 +205,7 @@ export default function FinancialSearch() {
   const [queryResults, setQueryResults] = useState<QueryResult[]>([]);
   const [structuredQueryResults, setStructuredQueryResults] = useState<StructuredQueryResponse[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [tickerLoading, setTickerLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"query" | "chat">("query");
   const [searchInput, setSearchInput] = useState("");
@@ -244,7 +247,7 @@ export default function FinancialSearch() {
       Respond in the following JSON format, output only the raw JSON object. Do not include any markdown fences like \`\`\`json:
       {
         "type": "numerical" or "textual" or "chart",
-        "summary": "brief explanation",
+        "summary": "brief explanation of what is being displayed",
         "data": {
           "values": [numbers if applicable],
           "labels": [labels if applicable],
@@ -352,9 +355,9 @@ export default function FinancialSearch() {
     e.preventDefault();
     if (!ticker) return;
 
-    setLoading(true);
+    setTickerLoading(true);
     setTicker(ticker.toUpperCase());
-    setLoading(false);
+    setTickerLoading(false);
 
     setSelectedTicker(ticker.toUpperCase());
     // handleTickerRequest();
@@ -681,10 +684,10 @@ const handleInfoQuery = async (e: React.FormEvent) => {
                   />
                   <Button
                     type="submit"
-                    disabled={loading || !ticker}
+                    disabled={tickerLoading || !ticker}
                     className="cursor-pointer"
                   >
-                    {loading ? "Searching..." : "Search"}
+                    {tickerLoading ? "Searching..." : "Search"}
                   </Button>
                 </form>
               ) : (
@@ -993,6 +996,33 @@ const handleInfoQuery = async (e: React.FormEvent) => {
             ))}
           </div>
         )}
+        {result.type === 'numerical' && result.data?.currentValue && result.data?.previousValue && (
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Current Value</p>
+              <p className="font-medium">
+                {result.data.currentValue.toLocaleString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Previous Value</p>
+              <p className="font-medium">
+                {result.data.previousValue.toLocaleString()}
+              </p>
+            </div>
+            {result.data.percentageChange !== undefined && (
+              <div>
+                <p className="text-sm text-muted-foreground">Change</p>
+                <p className={`font-medium ${
+                  result.data.percentageChange > 0 ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {result.data.percentageChange > 0 ? '+' : ''}
+                  {result.data.percentageChange.toFixed(2)}%
+                </p>
+              </div>
+            )}
+          </div>
+        )}
         {/* {result.currentValue && (
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
@@ -1018,7 +1048,7 @@ const handleInfoQuery = async (e: React.FormEvent) => {
         )} */}
 
         {/* Visualization */}
-        {(result.type === 'chart' || result.data?.chartType) && (
+        {(result.type === 'chart' ) && (
           <div className="mt-4">
             <QueryVisualization data={result.data} />
           </div>
