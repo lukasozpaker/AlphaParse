@@ -633,8 +633,11 @@ const handleInfoQuery = async (e: React.FormEvent) => {
 
   return (
     <div className="container mx-auto py-10 px-4 pb-24">
-      <h1 className="text-3xl font-bold text-center mb-8">
-        Financial Data Search
+      <h1 className="text-center mb-8">
+        <span className="text-3xl font-bold">AlphaParse</span>
+        <p className="text-sm text-muted-foreground">
+          Financial statement parser and query engine.
+        </p>
       </h1>
 
       {/* Top row with ticker search and information cards */}
@@ -955,76 +958,106 @@ const handleInfoQuery = async (e: React.FormEvent) => {
 
           {/* Right column - Query results */}
           <div className="space-y-4">
-            {selectedTicker && structuredQueryResults.length > 0 ? 
-            
-            (structuredQueryResults.map((result) => (
-  <Card key={result.id} className="border-2 border-primary/20">
-    <CardHeader>
-      <CardTitle className="flex items-center gap-2 text-base">
-        <span>{result.type.charAt(0).toUpperCase() + result.type.slice(1)}</span>
-      </CardTitle>
-      <CardDescription className="flex justify-between">
-        <span>Data extracted from {selectedTicker}'s 10K and 10Q filings</span>
-        <span className="text-xs">{formatTime(result.timestamp || new Date())}</span>
-      </CardDescription>
-    </CardHeader>
-    <CardContent className="pt-1">
-      <div className="border rounded-lg p-4">
-        <p className="text-sm text-muted-foreground mb-2">
-          Query: "{result.query}"
-        </p>
+            {selectedTicker && structuredQueryResults.length > 0 ? (
+              structuredQueryResults.map((result) => (
+                <Card key={result.id} className="border-2 border-primary/20">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <span>
+                        {result.type.charAt(0).toUpperCase() +
+                          result.type.slice(1)}
+                      </span>
+                    </CardTitle>
+                    <CardDescription className="flex justify-between">
+                      <span>
+                        Data extracted from {selectedTicker}'s 10K and 10Q
+                        filings
+                      </span>
+                      <span className="text-xs">
+                        {formatTime(result.timestamp || new Date())}
+                      </span>
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-1">
+                    <div className="border rounded-lg p-4">
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Query: "{result.query}"
+                      </p>
 
-        {/* Summary */}
-        <p className="mb-4">{result.summary}</p>
+                      {/* Summary */}
+                      <p className="mb-4">{result.summary}</p>
 
-        {/* Numerical Data */}
+                      {/* Numerical Data */}
 
-        {/* Numerical Data with Labels and Values */}
-        {result.type === 'numerical' && result.data?.labels && result.data?.values && (
-          <div className="space-y-4">
-            {result.data?.labels.map((label, index) => (
-              <div key={label} className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">{label}</p>
-                </div>
-                <div>
-                  <p className="font-medium">
-                    {result.data?.values ? result.data?.values[index].toLocaleString() : "N/A"} 
-                  </p>
-                </div>
-              </div>
-            ))}
-            <br/>
-          </div>
-        )}
-        {result.type === 'numerical' && result.data?.currentValue && result.data?.previousValue && (
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Current Value</p>
-              <p className="font-medium">
-                {result.data.currentValue.toLocaleString()}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Previous Value</p>
-              <p className="font-medium">
-                {result.data.previousValue.toLocaleString()}
-              </p>
-            </div>
-            {result.data.percentageChange !== undefined && (
-              <div>
-                <p className="text-sm text-muted-foreground">Change</p>
-                <p className={`font-medium ${
-                  result.data.percentageChange > 0 ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {result.data.percentageChange > 0 ? '+' : ''}
-                  {result.data.percentageChange.toFixed(2)}%
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-        {/* {result.currentValue && (
+                      {/* Numerical Data with Labels and Values */}
+                      {result.type === "numerical" &&
+                        result.data?.labels &&
+                        result.data?.values && (
+                          <div className="space-y-4">
+                            {result.data?.labels.map((label, index) => (
+                              <div
+                                key={label}
+                                className="grid grid-cols-2 gap-4"
+                              >
+                                <div>
+                                  <p className="text-sm text-muted-foreground">
+                                    {label}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="font-medium">
+                                    {result.data?.values
+                                      ? result.data?.values[
+                                          index
+                                        ].toLocaleString()
+                                      : "N/A"}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                            <br />
+                          </div>
+                        )}
+                      {result.type === "numerical" &&
+                        result.data?.currentValue &&
+                        result.data?.previousValue && (
+                          <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                              <p className="text-sm text-muted-foreground">
+                                Current Value
+                              </p>
+                              <p className="font-medium">
+                                {result.data.currentValue.toLocaleString()}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground">
+                                Previous Value
+                              </p>
+                              <p className="font-medium">
+                                {result.data.previousValue.toLocaleString()}
+                              </p>
+                            </div>
+                            {result.data.percentageChange !== undefined && (
+                              <div>
+                                <p className="text-sm text-muted-foreground">
+                                  Change
+                                </p>
+                                <p
+                                  className={`font-medium ${
+                                    result.data.percentageChange > 0
+                                      ? "text-green-600"
+                                      : "text-red-600"
+                                  }`}
+                                >
+                                  {result.data.percentageChange > 0 ? "+" : ""}
+                                  {result.data.percentageChange.toFixed(2)}%
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      {/* {result.currentValue && (
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <p className="text-sm text-muted-foreground">Current Value</p>
@@ -1048,87 +1081,87 @@ const handleInfoQuery = async (e: React.FormEvent) => {
           </div>
         )} */}
 
-        {/* Visualization */}
-        {(result.type === 'chart' ) && (
-          <div className="mt-4">
-            <QueryVisualization data={result.data} />
-          </div>
-        )}
-      </div>
-    </CardContent>
-  </Card>
-)))
-            // (
-            //   queryResults.map((result) => (
-            //     <Card key={result.id} className="border-2 border-primary/20">
-            //       <CardHeader /*className="bg-primary/5"*/>
-            //         <CardTitle className="flex items-center gap-2 text-base">
-            //           <span>{result.type}</span>
-            //         </CardTitle>
-            //         <CardDescription className="flex justify-between">
-            //           <span>
-            //             Data extracted from {selectedTicker}'s 10K and 10Q
-            //             filings
-            //           </span>
-            //           <span className="text-xs">
-            //             {formatTime(result.timestamp)}
-            //           </span>
-            //         </CardDescription>
-            //       </CardHeader>
-            //       <CardContent className="pt-6">
-            //         <div className="border rounded-lg p-4">
-            //           <p className="text-sm text-muted-foreground mb-2">
-            //             Query: "{result.query}"
-            //           </p>
+                      {/* Visualization */}
+                      {result.type === "chart" && (
+                        <div className="mt-4">
+                          <QueryVisualization data={result.data} />
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              // (
+              //   queryResults.map((result) => (
+              //     <Card key={result.id} className="border-2 border-primary/20">
+              //       <CardHeader /*className="bg-primary/5"*/>
+              //         <CardTitle className="flex items-center gap-2 text-base">
+              //           <span>{result.type}</span>
+              //         </CardTitle>
+              //         <CardDescription className="flex justify-between">
+              //           <span>
+              //             Data extracted from {selectedTicker}'s 10K and 10Q
+              //             filings
+              //           </span>
+              //           <span className="text-xs">
+              //             {formatTime(result.timestamp)}
+              //           </span>
+              //         </CardDescription>
+              //       </CardHeader>
+              //       <CardContent className="pt-6">
+              //         <div className="border rounded-lg p-4">
+              //           <p className="text-sm text-muted-foreground mb-2">
+              //             Query: "{result.query}"
+              //           </p>
 
-            //           {result.currentYear && (
-            //             <div className="grid grid-cols-2 gap-4 mb-2">
-            //               <div>
-            //                 <p className="text-sm text-muted-foreground">
-            //                   Current Year
-            //                 </p>
-            //                 <p className="font-medium">{result.currentYear}</p>
-            //               </div>
-            //               <div>
-            //                 <p className="text-sm text-muted-foreground">
-            //                   Previous Year
-            //                 </p>
-            //                 <p className="font-medium">{result.previousYear}</p>
-            //               </div>
-            //             </div>
-            //           )}
+              //           {result.currentYear && (
+              //             <div className="grid grid-cols-2 gap-4 mb-2">
+              //               <div>
+              //                 <p className="text-sm text-muted-foreground">
+              //                   Current Year
+              //                 </p>
+              //                 <p className="font-medium">{result.currentYear}</p>
+              //               </div>
+              //               <div>
+              //                 <p className="text-sm text-muted-foreground">
+              //                   Previous Year
+              //                 </p>
+              //                 <p className="font-medium">{result.previousYear}</p>
+              //               </div>
+              //             </div>
+              //           )}
 
-            //           {result.growth && (
-            //             <div className="mt-2">
-            //               <p className="text-sm text-muted-foreground">
-            //                 Growth
-            //               </p>
-            //               <p
-            //                 className={`font-medium ${
-            //                   result.growth.startsWith("+")
-            //                     ? "text-green-600"
-            //                     : "text-red-600"
-            //                 }`}
-            //               >
-            //                 {result.growth}
-            //               </p>
-            //             </div>
-            //           )}
+              //           {result.growth && (
+              //             <div className="mt-2">
+              //               <p className="text-sm text-muted-foreground">
+              //                 Growth
+              //               </p>
+              //               <p
+              //                 className={`font-medium ${
+              //                   result.growth.startsWith("+")
+              //                     ? "text-green-600"
+              //                     : "text-red-600"
+              //                 }`}
+              //               >
+              //                 {result.growth}
+              //               </p>
+              //             </div>
+              //           )}
 
-            //           {result.count && (
-            //             <div>
-            //               <p className="text-sm text-muted-foreground">Count</p>
-            //               <p className="font-medium">{result.count}</p>
-            //             </div>
-            //           )}
+              //           {result.count && (
+              //             <div>
+              //               <p className="text-sm text-muted-foreground">Count</p>
+              //               <p className="font-medium">{result.count}</p>
+              //             </div>
+              //           )}
 
-            //           {result.message && <p>{result.message}</p>}
-            //         </div>
-            //       </CardContent>
-            //     </Card>
-            //   ))
-            // ) 
-            : (
+              //           {result.message && <p>{result.message}</p>}
+              //         </div>
+              //       </CardContent>
+              //     </Card>
+              //   ))
+              // )
               <div className="flex flex-col items-center justify-center h-[200px] border rounded-lg p-8 bg-muted/50">
                 <Search className="h-8 w-8 text-muted-foreground mb-4" />
                 <p className="text-center text-muted-foreground">
