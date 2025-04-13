@@ -159,7 +159,10 @@ const QueryVisualization = ({ data }: { data: StructuredQueryResponse['data'] })
       {data.chartType === "line" ? (
         <LineChart {...chartProps}>
           <XAxis dataKey="name" />
-          <YAxis />
+          <YAxis tickFormatter={tick => {
+              return tick.toLocaleString();
+            }}
+/>
           <Tooltip />
           <Legend />
           {data.series?.map((series, index) => (
@@ -188,7 +191,10 @@ const QueryVisualization = ({ data }: { data: StructuredQueryResponse['data'] })
       : data.chartType === "bar" ? (
         <BarChart {...chartProps}>
           <XAxis dataKey="name" />
-          <YAxis />
+          <YAxis tickFormatter={tick => {
+              return tick.toLocaleString();
+            }}
+/>
           <Tooltip />
           <Legend />
           {data.series ? (
