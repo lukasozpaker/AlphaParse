@@ -22,7 +22,19 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { tickerToCIK, ChatMessage, Company, getMostRecent10KFormTextFromTicker, getMostRecent10KURLFromMetadataFromSEC, getCIKFormMetadataFromSEC, getMetadataObjectFromURL, removeStyling, cleanSECDocument, extractFinancialDataFrom10K, extractFinancialDataFrom10KwithTables} from "@/lib/resources";
+import {
+  tickerToCIK,
+  ChatMessage,
+  Company,
+  getMostRecent10KFormTextFromTicker,
+  getMostRecent10KURLFromMetadataFromSEC,
+  getCIKFormMetadataFromSEC,
+  getMetadataObjectFromURL,
+  removeStyling,
+  cleanSECDocument,
+  extractFinancialDataFrom10K,
+  extractFinancialDataFrom10KwithTables,
+} from "@/lib/resources";
 
 type QueryResult = {
   id: string;
@@ -54,6 +66,7 @@ export default function FinancialSearch() {
   const [selectedCompanyName, setSelectedCompanyName] = useState("");
   const [searchMode, setSearchMode] = useState<"ticker" | "company">("ticker");
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
+  const [tenKText, setTenKText] = useState<string | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const FINNHUB_KEY = process.env.NEXT_PUBLIC_FINNHUB_KEY;
   const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
@@ -66,25 +79,21 @@ export default function FinancialSearch() {
   // Ref for scrolling dropdown
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-
-  // test the metadata function
   useEffect(() => {
-    // test 10K url
-    // const fetch10KURL = async () => {
-      // const cik = tickerToCIK('INTC');
-      // const metadataURL = getCIKFormMetadataFromSEC(cik);
-      // const metadataObject = await getMetadataObjectFromURL(metadataURL);
-      // const filingURL = getMostRecent10KURLFromMetadataFromSEC(metadataObject);
-      // console.log("filingURL", filingURL);
-    // }
-    // fetch10KURL();
-
     const fetch10KText = async () => {
       if (selectedTicker) {
-        const text = await getMostRecent10KFormTextFromTicker(selectedTicker);
-        console.log("10-K Text", extractFinancialDataFrom10KwithTables(text));
+        try {
+          const text = await getMostRecent10KFormTextFromTicker(selectedTicker);
+          const cleanedText = extractFinancialDataFrom10KwithTables(text);
+          setTenKText(cleanedText);
+          console.log("10-K Text", cleanedText);
+        } catch (error) {
+          console.error("Error fetching 10-K text:", error);
+          setTenKText(null);
+        }
       }
-    }
+    };
+
     fetch10KText();
   }, [selectedTicker]);
 
@@ -194,7 +203,10 @@ export default function FinancialSearch() {
             exchange: profileData.exchange || "N/A",
             industry: profileData.finnhubIndustry || "N/A",
             marketCap: profileData.marketCapitalization
-              ? `$${profileData.marketCapitalization.toFixed(2)}B`
+              ? `$${profileData.marketCapitalization.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}`
               : "N/A",
             todayChange: `${quoteData.d > 0 ? "+" : ""}$${quoteData.d.toFixed(
               2
@@ -289,18 +301,40 @@ export default function FinancialSearch() {
     setChatInput(""); // Clear input
     setLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      // Initialize Gemini AI
+      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+
+      // Generate AI response with the 10-K included in the system prompt
+      const response = await ai.models.generateContent({
+        model: "gemini-2.0-flash",
+        contents: `You are an AI assistant with access to ${selectedTicker}'s most recent 10-K filing. Keep the responses brief as this is a chat, at the end of each response try to ask a 1-3 leading questions to possibly guide the user into asking for help or defining terms. Use said 10-K data to answer questions: "${
+          tenKText ||
+          "There is no 10-K data available in this instance, do your best."
+        }". Now, answer the user's question: "${chatInput}"`,
+      });
+
       const aiResponse: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: generateAIResponse(chatInput, ticker),
+        content: response.text || "I'm sorry, I couldn't generate a response.",
         timestamp: new Date(),
       };
 
       setChatMessages((prev) => [...prev, aiResponse]);
+    } catch (error) {
+      console.error("Error generating AI response:", error);
+      const errorResponse: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content:
+          "I'm sorry, there was an error generating a response. Please try again later.",
+        timestamp: new Date(),
+      };
+      setChatMessages((prev) => [...prev, errorResponse]);
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   // Helper function to generate mock AI responses
@@ -565,7 +599,9 @@ export default function FinancialSearch() {
 
                   {/* Market Cap */}
                   <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Market Cap</p>
+                    <p className="text-sm text-muted-foreground">
+                      Market Cap (Millions)
+                    </p>
                     <p className="text-lg font-medium">
                       {tickerData.marketCap}
                     </p>
@@ -594,7 +630,7 @@ export default function FinancialSearch() {
                   {/* Phone */}
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Phone</p>
-                    <p className="text-lg font-medium">{tickerData.phone}</p>
+                    <p className="text-lg font-medium">{`+${tickerData.phone}`}</p>
                   </div>
 
                   {/* Website */}
