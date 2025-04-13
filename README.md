@@ -1,15 +1,21 @@
+## Visualization and Query Engine for SEC Filings from US publicly listed securities
+Chart, query, or freely ask questions about filings
+
+Currently only supports most recently filed 10-K
+
+### TODO
+- [ ] Move SEC processing to AWS Lambda
+- [ ] Support tabular query output in addition to graphs
+- [ ] Support more 10-K, from and across specific years
+
 ## Run the development server
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 ## Need API keys as environment variables
+Requires Gemini and Finnhub API keys
+
 Set them up
 
 
