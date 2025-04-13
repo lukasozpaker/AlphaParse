@@ -994,6 +994,7 @@ const handleInfoQuery = async (e: React.FormEvent) => {
                 </div>
               </div>
             ))}
+            <br/>
           </div>
         )}
         {result.type === 'numerical' && result.data?.currentValue && result.data?.previousValue && (
