@@ -657,7 +657,7 @@ const handleInfoQuery = async (e: React.FormEvent) => {
       <h1 className="text-center mb-8">
         <span className="text-3xl font-bold">AlphaParse</span>
         <p className="text-sm text-muted-foreground">
-          Financial statement parser and query engine
+          Financial statement visualizer and query engine
         </p>
       </h1>
 
@@ -956,7 +956,7 @@ const handleInfoQuery = async (e: React.FormEvent) => {
                     <Input
                       placeholder={
                         selectedTicker
-                          ? "E.g., current year revenue, profit margin"
+                          ? "E.g., graph of revenue by segment, profit margin, pie chart of assets"
                           : "Search for a ticker first..."
                       }
                       value={query || ""}
