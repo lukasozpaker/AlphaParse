@@ -7,6 +7,7 @@ Currently only supports most recently filed 10-K
 - [ ] Move SEC processing to AWS Lambda
 - [ ] Support tabular query output in addition to graphs
 - [ ] Support more 10-K, from and across specific years
+- [ ] Perform serious heavy-duty refactor, this code is a complete mess
 
 ## Run the development server
 ```bash
