@@ -1081,7 +1081,7 @@ const handleInfoQuery = async (e: React.FormEvent) => {
         )} */}
 
                       {/* Visualization */}
-                      {result.type === "chart" || result.data?.chartType && (
+                      {(result.type === "chart" || result.data?.chartType) && (
                         <div className="mt-4">
                           <QueryVisualization data={result.data} />
                         </div>
